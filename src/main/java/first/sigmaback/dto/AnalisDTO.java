@@ -1,8 +1,7 @@
 package first.sigmaback.dto;
 
-import java.time.LocalDate;
-
 import lombok.Data;
+import java.time.LocalDate;
 
 @Data
 public class AnalisDTO {
@@ -18,8 +17,47 @@ public class AnalisDTO {
     private LocalDate planDateShipment;
     private LocalDate forecastDateShipment;
     private LocalDate factDateShipment;
-    private Double mechanicOptionNorm;
-    private Double electronOptionNorm;
-    private Double electricOptionNorm;
-    private Double techOptionNorm;
+    private String mechanicOptionWorktype;
+    private String electronOptionWorktype;
+    private String electricOptionWorktype;
+    private String techOptionWorktype;
+    private Double mechanicNorm;
+    private Double electronNorm;
+    private Double electricNorm;
+    private Double techNorm;
+
+    // Поля для TimeService
+    private String vhodControlStartTime;
+    private String vhodControlStopTime;
+    private String vhodControlWorkTime;
+
+    private String podkluchenieStartTime;
+    private String podkluchenieStopTime;
+    private String podkluchenieWorkTime;
+
+    private String proverkaMehanikomStartTime;
+    private String proverkaMehanikomStopTime;
+    private String proverkaMehanikomWorkTime;
+
+    private String proverkaElectronStartTime;
+    private String proverkaElectronStopTime;
+    private String proverkaElectronWorkTime;
+
+    private String proverkaTehnologomStartTime;
+    private String proverkaTehnologomStopTime;
+    private String proverkaTehnologomWorkTime;
+
+    private String vihodControlStartTime;
+    private String vihodControlStopTime;
+    private String vihodControlWorkTime;
+
+    private String transportPolozhenieStartTime;
+    private String transportPolozhenieStopTime;
+    private String transportPolozhenieWorkTime;
+
+    // Поля для суммарного времени
+    private String mechanicTotalWorktime;
+    private String electronTotalWorktime;
+    private String electricTotalWorktime;
+    private String techTotalWorktime;
 }
