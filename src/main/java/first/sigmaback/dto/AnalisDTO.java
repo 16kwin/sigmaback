@@ -18,4 +18,8 @@ public class AnalisDTO {
     private LocalDate planDateShipment;
     private LocalDate forecastDateShipment;
     private LocalDate factDateShipment;
+    private Double mechanicOptionNorm;
+    private Double electronOptionNorm;
+    private Double electricOptionNorm;
+    private Double techOptionNorm;
 }

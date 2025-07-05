@@ -8,4 +8,6 @@ import first.sigmaback.entity.Operation;
 
 public interface OperationRepository  extends JpaRepository<Operation, Long>{
  List<Operation> findByOperationTransaction(String operationTransaction);
+
+ long countByOperationTransaction(String transactionId);
 }

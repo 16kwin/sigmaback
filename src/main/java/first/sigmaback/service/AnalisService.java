@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -16,11 +17,13 @@ public class AnalisService {
 
     private final PppRepository pppRepository;
     private final AnalisHeaderService analisHeaderService;
+    private final OperationService operationService; // Добавляем OperationService
 
     @Autowired
-    public AnalisService(PppRepository pppRepository, AnalisHeaderService analisHeaderService) {
+    public AnalisService(PppRepository pppRepository, AnalisHeaderService analisHeaderService, OperationService operationService) {
         this.pppRepository = pppRepository;
         this.analisHeaderService = analisHeaderService;
+        this.operationService = operationService; // Инициализируем OperationService
     }
 
     public AnalisFullDTO getAllTransactions() {
@@ -57,6 +60,22 @@ public class AnalisService {
         dto.setPlanDateShipment(ppp.getPlanDateShipment());
         dto.setForecastDateShipment(ppp.getForecastDateShipment());
         dto.setFactDateShipment(ppp.getFactDateShipment());
+
+        // Получаем нормы по профессиям для данной транзакции из OperationService
+        Map<String, Double> normsByProfession = operationService.calculateNormsByProfession(ppp.getTransaction());
+
+        // Получаем количество операций для каждой профессии
+        Double mechanicOptionNorm = normsByProfession.get("Механик");
+        Double electronOptionNorm = normsByProfession.get("Электронщик");
+        Double electricOptionNorm = normsByProfession.get("Электрик");
+        Double techOptionNorm = normsByProfession.get("Технолог");
+
+        // Устанавливаем количество операций для каждой профессии в DTO
+        dto.setMechanicOptionNorm(mechanicOptionNorm != null ? mechanicOptionNorm : 0.0);
+        dto.setElectronOptionNorm(electronOptionNorm != null ? electronOptionNorm : 0.0);
+        dto.setElectricOptionNorm(electricOptionNorm != null ? electricOptionNorm : 0.0);
+        dto.setTechOptionNorm(techOptionNorm != null ? techOptionNorm : 0.0);
+
         return dto;
     }
 }
