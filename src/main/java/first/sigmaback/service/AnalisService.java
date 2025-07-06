@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+
+
 @Service
 public class AnalisService {
 
@@ -19,14 +21,18 @@ public class AnalisService {
     private final AnalisHeaderService analisHeaderService;
     private final OperationService operationService; // Добавляем OperationService
     private final TimeService timeService; // Добавляем TimeService
+    private final ProblemService problemService;
+
 
     @Autowired
-    public AnalisService(PppRepository pppRepository, AnalisHeaderService analisHeaderService, OperationService operationService, TimeService timeService) {
-        this.pppRepository = pppRepository;
-        this.analisHeaderService = analisHeaderService;
-        this.operationService = operationService;
-        this.timeService = timeService;
-    }
+    public AnalisService(PppRepository pppRepository, AnalisHeaderService analisHeaderService, OperationService operationService, TimeService timeService, ProblemService problemService) {
+    this.pppRepository = pppRepository;
+    this.analisHeaderService = analisHeaderService;
+    this.operationService = operationService;
+    this.timeService = timeService;
+    this.problemService = problemService;
+}
+
 
     public AnalisFullDTO getAllTransactions() {
         // 1. Получаем данные для заголовка
@@ -48,7 +54,10 @@ public class AnalisService {
         return fullDTO;
     }
 
-    private AnalisDTO convertToAnalisDTO(Ppp ppp) {
+
+
+
+     private AnalisDTO convertToAnalisDTO(Ppp ppp) {
         AnalisDTO dto = new AnalisDTO();
         dto.setTransaction(ppp.getTransaction());
         dto.setStatus(ppp.getStatus());
@@ -120,14 +129,273 @@ public class AnalisService {
         dto.setTransportPolozhenieStopTime(getOperationValue(timeServiceResults, "Транспортное положение", "stopTime"));
         dto.setTransportPolozhenieWorkTime(getOperationValue(timeServiceResults, "Транспортное положение", "workTime"));
 
-        // Суммируем время и устанавливаем в DTO
         dto.setMechanicTotalWorktime(sumWorkTimes(mechanicOptionWorktype, getOperationValue(timeServiceResults, "Проверка механиком", "workTime")));
         dto.setElectronTotalWorktime(sumWorkTimes(electronOptionWorktype, getOperationValue(timeServiceResults, "Проверка электронщиком", "workTime")));
         dto.setElectricTotalWorktime(sumWorkTimes(electricOptionWorktype, getOperationValue(timeServiceResults, "Подключение", "workTime")));
-        dto.setTechTotalWorktime(sumWorkTimes(techOptionWorktype, getOperationValue(timeServiceResults, "проверка технологом", "workTime")));
+        dto.setTechTotalWorktime(sumWorkTimes(techOptionWorktype, getOperationValue(timeServiceResults, "Проверка технологом", "workTime")));
+
+        // Calculate totalOperationsWorkTime
+        String totalOperationsWorkTime = sumWorkTimes(
+                dto.getVhodControlWorkTime(),
+                sumWorkTimes(dto.getMechanicTotalWorktime(),
+                        sumWorkTimes(dto.getElectronTotalWorktime(),
+                                sumWorkTimes(dto.getElectricTotalWorktime(),
+                                        sumWorkTimes(dto.getTechTotalWorktime(),
+                                                sumWorkTimes(dto.getVihodControlWorkTime(),
+                                                        dto.getTransportPolozhenieWorkTime()))))));
+
+        dto.setTotalOperationsWorkTime(totalOperationsWorkTime);
+
+            Map<String, Double> problemHoursByProfession = problemService.getProblemHoursByProfession(ppp.getTransaction());
+
+    // Устанавливаем значения в DTO, если они есть, иначе 0.0
+    dto.setMechanicProblemHours(problemHoursByProfession.getOrDefault("Механик", 0.0));
+    dto.setElectronProblemHours(problemHoursByProfession.getOrDefault("Электронщик", 0.0));
+    dto.setElectricProblemHours(problemHoursByProfession.getOrDefault("Электрик", 0.0));
+    dto.setTechProblemHours(problemHoursByProfession.getOrDefault("Технолог", 0.0));
+    dto.setComplexProblemHours(problemHoursByProfession.getOrDefault("Комплектация", 0.0));
+ Double totalProblemHours = dto.getMechanicProblemHours() +
+            dto.getElectronProblemHours() +
+            dto.getElectricProblemHours() +
+            dto.getTechProblemHours() +
+            dto.getComplexProblemHours();
+
+    dto.setTotalProblemHours(totalProblemHours);
+
+
+
+
+    
+
+String vhodNormString = analisHeaderService.getNorms().getVhodNorm(); // Получаем vhodNorm как String
+double vhodNorm;
+
+try {
+    vhodNorm = Double.parseDouble(vhodNormString); // Преобразуем String в double
+} catch (NumberFormatException e) {
+    // Обработка ошибки, если строка не может быть преобразована в число
+    System.err.println("Ошибка: Невозможно преобразовать vhodNorm в число. Установлено значение по умолчанию 0.0");
+    vhodNorm = 0.0; // Устанавливаем значение по умолчанию
+}
+
+
+long vhodControlWorkTimeSeconds = parseTimeToSeconds(dto.getVhodControlWorkTime()); // Преобразуем в секунды
+long vhodNormSeconds = (long) (vhodNorm * 3600); // Преобразуем vhodNorm в секунды
+
+String vhodControlTimeExceeded = (vhodControlWorkTimeSeconds <= vhodNormSeconds) ? "Да" : "Нет";
+dto.setVhodControlTimeExceeded(vhodControlTimeExceeded);
+
+
+
+// Сравнение времени электрика (обновленная логика)
+
+// Получаем значения
+String podklyuchenieNormString = analisHeaderService.getNorms().getPodklyuchenieNorm(); // Получаем podklyuchenieNorm как String
+String electricNormString = results.get("Электрик"); // Получаем electricNorm из OperationService
+double podklyuchenieNorm;
+double electricNormFull; // Объявляем electricNorm только один раз
+
+// Преобразуем podklyuchenieNorm в double
+try {
+    podklyuchenieNorm = Double.parseDouble(podklyuchenieNormString);
+} catch (NumberFormatException e) {
+    System.err.println("Ошибка: Невозможно преобразовать podklyuchenieNorm в число. Установлено значение по умолчанию 0.0");
+    podklyuchenieNorm = 0.0;
+}
+
+// Преобразуем electricNorm в double
+try {
+    electricNormFull = Double.parseDouble(electricNormString);
+} catch (NumberFormatException e) {
+    System.err.println("Ошибка: Невозможно преобразовать electricNormFull в число. Установлено значение по умолчанию 0.0");
+    electricNormFull = 0.0;
+}
+
+// Преобразуем electricTotalWorktime и electricProblemHours в секунды
+long electricTotalWorkTimeSeconds = parseTimeToSeconds(dto.getElectricTotalWorktime());
+double electricProblemHours = dto.getElectricProblemHours();
+long electricProblemHoursSeconds = (long) (electricProblemHours * 3600);
+
+// Вычитаем время проблем из общего времени
+long cleanElectricTimeSeconds = electricTotalWorkTimeSeconds - electricProblemHoursSeconds;
+
+// Суммируем нормативы
+double totalElectricNorm = podklyuchenieNorm + electricNormFull;
+long totalElectricNormSeconds = (long) (totalElectricNorm * 3600);
+
+// Сравниваем и устанавливаем результат
+String electricTimeExceeded = (cleanElectricTimeSeconds < totalElectricNormSeconds) ? "Да" : "Нет";
+dto.setElectricTimeExceeded(electricTimeExceeded);
+
+
+
+String mechOperationNormString = analisHeaderService.getNorms().getMechOperationNorm(); // Получаем mechOperationNorm как String
+String mechNormString = results.get("Электрик"); // Получаем mechNorm из OperationService
+double mechOperationNorm;
+double mechNormFull; // Объявляем mechNorm только один раз
+
+// Преобразуем mechOperationNorm в double
+try {
+    mechOperationNorm = Double.parseDouble(mechOperationNormString);
+} catch (NumberFormatException e) {
+    System.err.println("Ошибка: Невозможно преобразовать mechOperationNorm в число. Установлено значение по умолчанию 0.0");
+    mechOperationNorm = 0.0;
+}
+
+// Преобразуем mechNorm в double
+try {
+    mechNormFull = Double.parseDouble(mechNormString);
+} catch (NumberFormatException e) {
+    System.err.println("Ошибка: Невозможно преобразовать mechNormFull в число. Установлено значение по умолчанию 0.0");
+    mechNormFull = 0.0;
+}
+
+// Преобразуем mechTotalWorktime и mechProblemHours в секунды
+long mechTotalWorkTimeSeconds = parseTimeToSeconds(dto.getMechanicTotalWorktime());
+double mechProblemHours = dto.getMechanicProblemHours();
+long mechProblemHoursSeconds = (long) (mechProblemHours * 3600);
+
+// Вычитаем время проблем из общего времени
+long cleanmechTimeSeconds = mechTotalWorkTimeSeconds - mechProblemHoursSeconds;
+
+// Суммируем нормативы
+double totalmechNorm = mechOperationNorm + mechNormFull;
+long totalmechNormSeconds = (long) (totalmechNorm * 3600);
+
+// Сравниваем и устанавливаем результат
+String mechTimeExceeded = (cleanmechTimeSeconds < totalmechNormSeconds) ? "Да" : "Нет";
+dto.setMechanicTimeExceeded(mechTimeExceeded);
+
+
+
+
+
+
+String electronOperationNormString = analisHeaderService.getNorms().getElectronOperationNorm(); // Получаем electronOperationNorm как String
+String electronNormString = results.get("Электрик"); // Получаем electronNorm из OperationService
+double electronOperationNorm;
+double electronNormFull; // Объявляем electronNorm только один раз
+
+// Преобразуем electronOperationNorm в double
+try {
+    electronOperationNorm = Double.parseDouble(electronOperationNormString);
+} catch (NumberFormatException e) {
+    System.err.println("Ошибка: Невозможно преобразовать electronOperationNorm в число. Установлено значение по умолчанию 0.0");
+    electronOperationNorm = 0.0;
+}
+
+// Преобразуем electronNorm в double
+try {
+    electronNormFull = Double.parseDouble(electronNormString);
+} catch (NumberFormatException e) {
+    System.err.println("Ошибка: Невозможно преобразовать electronNormFull в число. Установлено значение по умолчанию 0.0");
+    electronNormFull = 0.0;
+}
+
+// Преобразуем electronTotalWorktime и electronProblemHours в секунды
+long electronTotalWorkTimeSeconds = parseTimeToSeconds(dto.getElectronTotalWorktime());
+double electronProblemHours = dto.getElectronProblemHours();
+long electronProblemHoursSeconds = (long) (electronProblemHours * 3600);
+
+// Вычитаем время проблем из общего времени
+long cleanElectronTimeSeconds = electronTotalWorkTimeSeconds - electronProblemHoursSeconds;
+
+// Суммируем нормативы
+double totalElectronNorm = podklyuchenieNorm + electronNormFull;
+long totalElectronNormSeconds = (long) (totalElectronNorm * 3600);
+
+// Сравниваем и устанавливаем результат
+String electronTimeExceeded = (cleanElectronTimeSeconds < totalElectronNormSeconds) ? "Да" : "Нет";
+dto.setElectronTimeExceeded(electronTimeExceeded);
+
+
+
+
+
+String techOperationNormString = analisHeaderService.getNorms().getTechOperationNorm(); // Получаем techOperationNorm как String
+String techNormString = results.get("Электрик"); // Получаем techNorm из OperationService
+double techOperationNorm;
+double techNormFull; // Объявляем techNorm только один раз
+
+// Преобразуем techOperationNorm в double
+try {
+    techOperationNorm = Double.parseDouble(techOperationNormString);
+} catch (NumberFormatException e) {
+    System.err.println("Ошибка: Невозможно преобразовать podklyuchenieNorm в число. Установлено значение по умолчанию 0.0");
+    podklyuchenieNorm = 0.0;
+}
+
+// Преобразуем techNorm в double
+try {
+    techNormFull = Double.parseDouble(techNormString);
+} catch (NumberFormatException e) {
+    System.err.println("Ошибка: Невозможно преобразовать techNormFull в число. Установлено значение по умолчанию 0.0");
+    techNormFull = 0.0;
+}
+
+// Преобразуем techTotalWorktime и techProblemHours в секунды
+long techTotalWorkTimeSeconds = parseTimeToSeconds(dto.getTechTotalWorktime());
+double techProblemHours = dto.getTechProblemHours();
+long techProblemHoursSeconds = (long) (techProblemHours * 3600);
+
+// Вычитаем время проблем из общего времени
+long cleantechTimeSeconds = techTotalWorkTimeSeconds - techProblemHoursSeconds;
+
+// Суммируем нормативы
+double totaltechNorm = podklyuchenieNorm + techNormFull;
+long totaltechNormSeconds = (long) (totaltechNorm * 3600);
+
+// Сравниваем и устанавливаем результат
+String techTimeExceeded = (cleantechTimeSeconds < totaltechNormSeconds) ? "Да" : "Нет";
+dto.setTechTimeExceeded(techTimeExceeded);
+
+
+
+
+String vihodNormString = analisHeaderService.getNorms().getVihodNorm(); // Получаем vihodNorm как String
+double vihodNorm;
+
+try {
+    vihodNorm = Double.parseDouble(vihodNormString); // Преобразуем String в double
+} catch (NumberFormatException e) {
+    // Обработка ошибки, если строка не может быть преобразована в число
+    System.err.println("Ошибка: Невозможно преобразовать vihodNorm в число. Установлено значение по умолчанию 0.0");
+    vihodNorm = 0.0; // Устанавливаем значение по умолчанию
+}
+
+
+long vihodControlWorkTimeSeconds = parseTimeToSeconds(dto.getVihodControlWorkTime()); // Преобразуем в секунды
+long vihodNormSeconds = (long) (vihodNorm * 3600); // Преобразуем vihodNorm в секунды
+
+String vihodControlTimeExceeded = (vihodControlWorkTimeSeconds <= vihodNormSeconds) ? "Да" : "Нет";
+dto.setVihodControlTimeExceeded(vihodControlTimeExceeded);
+
+
+String transportNormString = analisHeaderService.getNorms().getTransportNorm(); // Получаем transportNorm как String
+double transportNorm;
+
+try {
+    transportNorm = Double.parseDouble(transportNormString); // Преобразуем String в double
+} catch (NumberFormatException e) {
+    // Обработка ошибки, если строка не может быть преобразована в число
+    System.err.println("Ошибка: Невозможно преобразовать transportNorm в число. Установлено значение по умолчанию 0.0");
+    transportNorm = 0.0; // Устанавливаем значение по умолчанию
+}
+
+
+long transportWorkTimeSeconds = parseTimeToSeconds(dto.getTransportPolozhenieWorkTime()); // Преобразуем в секунды
+long transportNormSeconds = (long) (transportNorm * 3600); // Преобразуем transportNorm в секунды
+
+String transportTimeExceeded = (transportWorkTimeSeconds <= transportNormSeconds) ? "Да" : "Нет";
+dto.setTransportTimeExceeded(transportTimeExceeded);
+
 
         return dto;
     }
+
+
+
+
 
     // Helper method to get operation value from TimeService results
     private String getOperationValue(Map<String, Map<String, String>> timeServiceResults, String operationName, String valueName) {
@@ -136,6 +404,11 @@ public class AnalisService {
         }
         return "00:00:00"; // Or return a default value like "00:00:00" if you prefer
     }
+
+
+
+
+
 
     // Helper method to sum two work times in "HH:mm:ss" format
    private String sumWorkTimes(String time1, String time2) {
@@ -155,6 +428,11 @@ public class AnalisService {
 
         return String.format("%02d:%02d:%02d", HH, MM, SS);
     }
+
+
+
+
+
 
     // Helper method to parse time string in "HH:mm:ss" format to seconds
     private long parseTimeToSeconds(String time) {

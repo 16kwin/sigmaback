@@ -60,4 +60,24 @@ public class AnalisDTO {
     private String electronTotalWorktime;
     private String electricTotalWorktime;
     private String techTotalWorktime;
+    private String totalOperationsWorkTime;
+
+
+    private Double mechanicProblemHours;
+    private Double electronProblemHours;
+    private Double electricProblemHours;
+    private Double techProblemHours;
+    private Double complexProblemHours;
+     private Double totalProblemHours;
+
+
+
+     private String vhodControlTimeExceeded;
+     private String electricTimeExceeded;
+     private String mechanicTimeExceeded;
+     private String electronTimeExceeded;
+     private String techTimeExceeded;
+     private String TransportTimeExceeded;
+     private String vihodControlTimeExceeded;
+
 }

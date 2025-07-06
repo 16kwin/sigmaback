@@ -6,4 +6,6 @@ import first.sigmaback.entity.Employees;
 
 public interface EmployeesRepository  extends JpaRepository<Employees, Long>{
 
+     Employees findFirstByEmployeesName(String employeesName);
+
 }
