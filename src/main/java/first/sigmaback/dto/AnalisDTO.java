@@ -80,4 +80,7 @@ public class AnalisDTO {
      private String TransportTimeExceeded;
      private String vihodControlTimeExceeded;
 
+     public LocalDate newDate;
+     
+
 }

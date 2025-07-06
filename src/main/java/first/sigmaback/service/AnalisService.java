@@ -8,6 +8,7 @@ import first.sigmaback.repository.PppRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -22,15 +23,17 @@ public class AnalisService {
     private final OperationService operationService; // Добавляем OperationService
     private final TimeService timeService; // Добавляем TimeService
     private final ProblemService problemService;
+    private final DatesService datesService;
 
 
     @Autowired
-    public AnalisService(PppRepository pppRepository, AnalisHeaderService analisHeaderService, OperationService operationService, TimeService timeService, ProblemService problemService) {
+    public AnalisService(PppRepository pppRepository, AnalisHeaderService analisHeaderService, OperationService operationService, TimeService timeService, ProblemService problemService, DatesService datesService) {
     this.pppRepository = pppRepository;
     this.analisHeaderService = analisHeaderService;
     this.operationService = operationService;
     this.timeService = timeService;
     this.problemService = problemService;
+    this.datesService = datesService;
 }
 
 
@@ -389,6 +392,31 @@ long transportNormSeconds = (long) (transportNorm * 3600); // Преобразу
 String transportTimeExceeded = (transportWorkTimeSeconds <= transportNormSeconds) ? "Да" : "Нет";
 dto.setTransportTimeExceeded(transportTimeExceeded);
 
+
+
+ LocalDate planDateStart = ppp.getPlanDateStart();
+
+    // Получаем vhodNorm
+    String vhodNormDateString = analisHeaderService.getNorms().getVhodNorm();
+    double vhodNormDate;
+    try {
+        vhodNormDate = Double.parseDouble(vhodNormDateString);
+    } catch (NumberFormatException e) {
+        System.err.println("Ошибка: Невозможно преобразовать vhodNormDate в число. Установлено значение по умолчанию 0.0");
+        vhodNormDate = 0.0;
+    }
+
+    // Вычисляем новую дату с помощью DatesService
+    LocalDate newDate = datesService.calculateNewDate(planDateStart, vhodNormDate);
+
+    // Устанавливаем новую дату в DTO (предполагается, что в AnalisDTO есть поле newDate)
+    dto.setNewDate(newDate);
+
+
+
+
+
+    
 
         return dto;
     }
