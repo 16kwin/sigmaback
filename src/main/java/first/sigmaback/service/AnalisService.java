@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -24,16 +25,19 @@ public class AnalisService {
     private final TimeService timeService; // Добавляем TimeService
     private final ProblemService problemService;
     private final DatesService datesService;
+private final EmployeesService employeesService;
+private final InterService interService; // Добавляем зависимость
 
-
-    @Autowired
-    public AnalisService(PppRepository pppRepository, AnalisHeaderService analisHeaderService, OperationService operationService, TimeService timeService, ProblemService problemService, DatesService datesService) {
+@Autowired
+public AnalisService(PppRepository pppRepository, AnalisHeaderService analisHeaderService, OperationService operationService, TimeService timeService, ProblemService problemService, DatesService datesService, EmployeesService employeesService, InterService interService) {
     this.pppRepository = pppRepository;
     this.analisHeaderService = analisHeaderService;
     this.operationService = operationService;
     this.timeService = timeService;
     this.problemService = problemService;
     this.datesService = datesService;
+    this.employeesService = employeesService;
+    this.interService = interService; // Инициализируем зависимость
 }
 
 
@@ -393,31 +397,211 @@ String transportTimeExceeded = (transportWorkTimeSeconds <= transportNormSeconds
 dto.setTransportTimeExceeded(transportTimeExceeded);
 
 
-
  LocalDate planDateStart = ppp.getPlanDateStart();
 
-    // Получаем vhodNorm
-    String vhodNormDateString = analisHeaderService.getNorms().getVhodNorm();
-    double vhodNormDate;
-    try {
-        vhodNormDate = Double.parseDouble(vhodNormDateString);
-    } catch (NumberFormatException e) {
-        System.err.println("Ошибка: Невозможно преобразовать vhodNormDate в число. Установлено значение по умолчанию 0.0");
-        vhodNormDate = 0.0;
+    // Создаем карту с нормативами
+    Map<Integer, Double> norms = new HashMap<>();
+
+    norms.put(1, parseDouble(analisHeaderService.getNorms().getVhodNorm()));
+    norms.put(2, parseDouble(analisHeaderService.getNorms().getPodklyuchenieNorm()) + parseDouble(results.get("Электрик")));
+    norms.put(3, parseDouble(analisHeaderService.getNorms().getMechOperationNorm()) + parseDouble(results.get("Механик")));
+    norms.put(4, parseDouble(analisHeaderService.getNorms().getElectronOperationNorm()) + parseDouble(results.get("Электронщик")));
+    norms.put(5, parseDouble(analisHeaderService.getNorms().getTechOperationNorm()) + parseDouble(results.get("Технолог")));
+    norms.put(6, parseDouble(analisHeaderService.getNorms().getVihodNorm()));
+    norms.put(7, parseDouble(analisHeaderService.getNorms().getTransportNorm()));
+
+    // Вызываем DatesService
+    Map<Integer, LocalDate> calculatedDates = datesService.calculateDates(planDateStart, norms);
+
+    // Устанавливаем даты в DTO
+    dto.setPlanDate1(calculatedDates.get(1));
+    dto.setPlanDate2(calculatedDates.get(2));
+    dto.setPlanDate3(calculatedDates.get(3));
+    dto.setPlanDate4(calculatedDates.get(4));
+    dto.setPlanDate5(calculatedDates.get(5));
+    dto.setPlanDate6(calculatedDates.get(6));
+    dto.setPlanDate7(calculatedDates.get(7));
+
+
+LocalDate startDate;
+if (ppp.getFactDateStart() != null) {
+    startDate = ppp.getFactDateStart();
+} else if (ppp.getForecastDateStart() != null) {
+    startDate = ppp.getForecastDateStart();
+} else {
+    // Если ни factDateStart, ни forecastDateStart не заданы, используем planDateStart
+    if (ppp.getPlanDateStart() != null) {
+        startDate = ppp.getPlanDateStart(); // Или можно бросить исключение
+    } else {
+        // Если и planDateStart не задан, то у нас проблема!
+        System.err.println("Критическая ошибка: factDateStart, forecastDateStart и planDateStart равны null.  Невозможно рассчитать даты.");
+        // В этом случае лучше бросить исключение или вернуть null
+        return null; // Или throw new IllegalStateException("...");
     }
+}
 
-    // Вычисляем новую дату с помощью DatesService
-    LocalDate newDate = datesService.calculateNewDate(planDateStart, vhodNormDate);
+    // Создаем карту с нормативами
+    Map<Integer, Double> norms2 = new HashMap<>();
 
-    // Устанавливаем новую дату в DTO (предполагается, что в AnalisDTO есть поле newDate)
-    dto.setNewDate(newDate);
+    norms2.put(1, parseDouble(analisHeaderService.getNorms().getVhodNorm()));
+    norms2.put(2, parseDouble(analisHeaderService.getNorms().getPodklyuchenieNorm()) + parseDouble(results.get("Электрик")));
+    norms2.put(3, parseDouble(analisHeaderService.getNorms().getMechOperationNorm()) + parseDouble(results.get("Механик")));
+    norms2.put(4, parseDouble(analisHeaderService.getNorms().getElectronOperationNorm()) + parseDouble(results.get("Электронщик")));
+    norms2.put(5, parseDouble(analisHeaderService.getNorms().getTechOperationNorm()) + parseDouble(results.get("Технолог")));
+    norms2.put(6, parseDouble(analisHeaderService.getNorms().getVihodNorm()));
+    norms2.put(7, parseDouble(analisHeaderService.getNorms().getTransportNorm()));
+
+    // Вызываем DatesService, используя startDate
+    Map<Integer, LocalDate> calculatedDates2 = datesService.calculateDates(startDate, norms2);
+
+    // Устанавливаем даты в DTO
+    dto.setFactDate1(calculatedDates2.get(1)); // Предполагаем, что у вас теперь есть поля FactDate1... FactDate7
+    dto.setFactDate2(calculatedDates2.get(2));
+    dto.setFactDate3(calculatedDates2.get(3));
+    dto.setFactDate4(calculatedDates2.get(4));
+    dto.setFactDate5(calculatedDates2.get(5));
+    dto.setFactDate6(calculatedDates2.get(6));
+    dto.setFactDate7(calculatedDates2.get(7));
+String transactionId = ppp.getTransaction();
+    Map<String, String> employeeNames = employeesService.getEmployeeNamesForTransaction(transactionId);
+
+// Устанавливаем фамилии в DTO
+dto.setVhodControlEmployee(employeeNames.get("Входной контроль"));
+dto.setPodkluchenieEmployee(employeeNames.get("Подключение"));
+dto.setProverkaMehanikomEmployee(employeeNames.get("Проверка механиком"));
+dto.setProverkaElectronEmployee(employeeNames.get("Проверка электронщиком"));
+dto.setProverkaTehnologomEmployee(employeeNames.get("Проверка технологом"));
+dto.setVihodControlEmployee(employeeNames.get("Выходной контроль"));
+dto.setTransportPolozhenieEmployee(employeeNames.get("Транспортное положение"));
 
 
 
 
+Map<String, Map<String, String>> timeServiceResults2 = timeService.calculateOperationTimes(ppp.getTransaction());
 
-    
 
+// Получаем startTime и stopTime для операций, используя `timeServiceResults2`
+String vhodControlStopTime = "Нет данных";
+if (timeServiceResults2.containsKey("Входной контроль") && timeServiceResults2.get("Входной контроль").containsKey("stopTime")) {
+    vhodControlStopTime = timeServiceResults2.get("Входной контроль").get("stopTime");
+}
+
+String podkluchenieStartTime = "Нет данных";
+if (timeServiceResults2.containsKey("Подключение") && timeServiceResults2.get("Подключение").containsKey("startTime")) {
+    podkluchenieStartTime = timeServiceResults2.get("Подключение").get("startTime");
+}
+
+String podkluchenieStopTime = "Нет данных";
+if (timeServiceResults2.containsKey("Подключение") && timeServiceResults2.get("Подключение").containsKey("stopTime")) {
+    podkluchenieStopTime = timeServiceResults2.get("Подключение").get("stopTime");
+}
+
+String proverkaMehanikomStartTime = "Нет данных";
+if (timeServiceResults2.containsKey("Проверка механиком") && timeServiceResults2.get("Проверка механиком").containsKey("startTime")) {
+    proverkaMehanikomStartTime = timeServiceResults2.get("Проверка механиком").get("startTime");
+}
+//  ... повторяем для остальных операций ...
+String proverkaMehanikomStopTime = "Нет данных";
+if (timeServiceResults2.containsKey("Проверка механиком") && timeServiceResults2.get("Проверка механиком").containsKey("stopTime")) {
+    proverkaMehanikomStopTime = timeServiceResults2.get("Проверка механиком").get("stopTime");
+}
+String proverkaElectronStartTime = "Нет данных";
+if (timeServiceResults2.containsKey("Проверка электронщиком") && timeServiceResults2.get("Проверка электронщиком").containsKey("startTime")) {
+    proverkaElectronStartTime = timeServiceResults2.get("Проверка электронщиком").get("startTime");
+}
+String proverkaElectronStopTime = "Нет данных";
+if (timeServiceResults2.containsKey("Проверка электронщиком") && timeServiceResults2.get("Проверка электронщиком").containsKey("stopTime")) {
+    proverkaElectronStopTime = timeServiceResults2.get("Проверка электронщиком").get("stopTime");
+}
+String proverkaTehnologomStartTime = "Нет данных";
+if (timeServiceResults2.containsKey("Проверка технологом") && timeServiceResults2.get("Проверка технологом").containsKey("startTime")) {
+    proverkaTehnologomStartTime = timeServiceResults2.get("Проверка технологом").get("startTime");
+}
+String proverkaTehnologomStopTime = "Нет данных";
+if (timeServiceResults2.containsKey("Проверка технологом") && timeServiceResults2.get("Проверка технологом").containsKey("stopTime")) {
+    proverkaTehnologomStopTime = timeServiceResults2.get("Проверка технологом").get("stopTime");
+}
+
+String vihodControlStartTime = "Нет данных";
+if (timeServiceResults2.containsKey("Выходной контроль") && timeServiceResults2.get("Выходной контроль").containsKey("startTime")) {
+    vihodControlStartTime = timeServiceResults2.get("Выходной контроль").get("startTime");
+}
+String vihodControlStopTime = "Нет данных";
+if (timeServiceResults2.containsKey("Выходной контроль") && timeServiceResults2.get("Выходной контроль").containsKey("stopTime")) {
+    vihodControlStopTime = timeServiceResults2.get("Выходной контроль").get("stopTime");
+}
+
+String transportPolozhenieStartTime = "Нет данных";
+if (timeServiceResults2.containsKey("Транспортное положение") && timeServiceResults2.get("Транспортное положение").containsKey("startTime")) {
+    transportPolozhenieStartTime = timeServiceResults2.get("Транспортное положение").get("startTime");
+}
+
+
+// Вычисляем время между операциями, вызывая InterService
+String timeBetweenVhodAndPodkluchenie = interService.calculateTimeBetweenOperations(vhodControlStopTime, podkluchenieStartTime);
+String timeBetweenPodkluchenieAndProverkaMehanikom = interService.calculateTimeBetweenOperations(podkluchenieStopTime, proverkaMehanikomStartTime);
+String timeBetweenProverkaMehanikomAndProverkaElectron = interService.calculateTimeBetweenOperations(proverkaMehanikomStopTime, proverkaElectronStartTime);
+String timeBetweenProverkaElectronAndProverkaTehnologom = interService.calculateTimeBetweenOperations(proverkaElectronStopTime, proverkaTehnologomStartTime);
+String timeBetweenProverkaTehnologomAndVihodControl = interService.calculateTimeBetweenOperations(proverkaTehnologomStopTime, vihodControlStartTime);
+String timeBetweenVihodControlAndTransportPolozhenie = interService.calculateTimeBetweenOperations(vihodControlStopTime, transportPolozhenieStartTime);
+
+
+// Устанавливаем значения в DTO
+dto.setTimeBetweenVhodAndPodkluchenie(timeBetweenVhodAndPodkluchenie);
+dto.setTimeBetweenPodkluchenieAndProverkaMehanikom(timeBetweenPodkluchenieAndProverkaMehanikom);
+dto.setTimeBetweenProverkaMehanikomAndProverkaElectron(timeBetweenProverkaMehanikomAndProverkaElectron);
+dto.setTimeBetweenProverkaElectronAndProverkaTehnologom(timeBetweenProverkaElectronAndProverkaTehnologom);
+dto.setTimeBetweenProverkaTehnologomAndVihodControl(timeBetweenProverkaTehnologomAndVihodControl);
+dto.setTimeBetweenVihodControlAndTransportPolozhenie(timeBetweenVihodControlAndTransportPolozhenie);
+
+
+String timeBetweenVhodAndPodkluchenie2 = dto.getTimeBetweenVhodAndPodkluchenie();
+String timeBetweenPodkluchenieAndProverkaMehanikom2 = dto.getTimeBetweenPodkluchenieAndProverkaMehanikom();
+String timeBetweenProverkaMehanikomAndProverkaElectron2 = dto.getTimeBetweenProverkaMehanikomAndProverkaElectron();
+String timeBetweenProverkaElectronAndProverkaTehnologom2 = dto.getTimeBetweenProverkaElectronAndProverkaTehnologom();
+String timeBetweenProverkaTehnologomAndVihodControl2 = dto.getTimeBetweenProverkaTehnologomAndVihodControl();
+String timeBetweenVihodControlAndTransportPolozhenie2 = dto.getTimeBetweenVihodControlAndTransportPolozhenie();
+
+// Суммируем все времена
+String totalTime = sumWorkTimes2(
+        timeBetweenVhodAndPodkluchenie2,
+        timeBetweenPodkluchenieAndProverkaMehanikom2,
+        timeBetweenProverkaMehanikomAndProverkaElectron2,
+        timeBetweenProverkaElectronAndProverkaTehnologom2,
+        timeBetweenProverkaTehnologomAndVihodControl2,
+        timeBetweenVihodControlAndTransportPolozhenie2
+);
+
+// Устанавливаем общую сумму в DTO
+dto.setTotalTimeBetweenOperations(totalTime);
+
+// ... (existing code) ...
+
+// Получаем planPpp из DTO (предполагается, что planPpp - это double в минутах)
+double planPppMinutes = dto.getPlanPpp();
+
+// Преобразуем planPpp в секунды
+double planPppSeconds = planPppMinutes * 60;
+
+// Вычисляем totalOperationsWorkTime в секундах
+long totalOperationsWorkTimeSeconds = 0;
+for (Map.Entry<String, Map<String, String>> entry : timeServiceResults.entrySet()) {
+    String operationName = entry.getKey();
+    Map<String, String> operationInfo = entry.getValue();
+    String workTime = operationInfo.get("workTime");
+    totalOperationsWorkTimeSeconds += parseTimeToSeconds(workTime);
+}
+
+// Вычисляем процент
+double percentage = (planPppSeconds / totalOperationsWorkTimeSeconds) * 100;
+
+// Форматируем результат
+String formattedPercentage = String.format("%.2f%%", percentage);
+
+// Устанавливаем результат в DTO
+dto.setPercentagePlanPpp(formattedPercentage);
+
+// ... (existing code) ...
         return dto;
     }
 
@@ -459,7 +643,22 @@ dto.setTransportTimeExceeded(transportTimeExceeded);
 
 
 
+// Helper method to sum work times in "HH:mm:ss" format
+private String sumWorkTimes2(String... times) {
+    long totalSeconds = 0;
 
+    for (String time : times) {
+        if (time != null && !time.isEmpty() && !"Нет данных".equals(time)) {
+            totalSeconds += parseTimeToSeconds(time);
+        }
+    }
+
+    long HH = totalSeconds / 3600;
+    long MM = (totalSeconds % 3600) / 60;
+    long SS = totalSeconds % 60;
+
+    return String.format("%02d:%02d:%02d", HH, MM, SS);
+}
 
 
     // Helper method to parse time string in "HH:mm:ss" format to seconds
@@ -471,4 +670,13 @@ dto.setTransportTimeExceeded(transportTimeExceeded);
 
         return HH * 3600 + MM * 60 + SS;
     }
+    //Вспомогательный метод для безопасного преобразования String в double
+private double parseDouble(String value) {
+    try {
+        return Double.parseDouble(value);
+    } catch (NumberFormatException e) {
+        System.err.println("Ошибка преобразования числа: " + value + ". Установлено значение по умолчанию 0.0");
+        return 0.0;
+    }
+}
 }

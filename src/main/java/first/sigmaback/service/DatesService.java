@@ -7,9 +7,31 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class DatesService {
+
+    public Map<Integer, LocalDate> calculateDates(LocalDate planDateStart, Map<Integer, Double> norms) {
+        Map<Integer, LocalDate> dates = new HashMap<>();
+        LocalDate currentDate = planDateStart;
+
+        for (int i = 1; i <= norms.size(); i++) {
+            Double norm = norms.get(i);
+            if (norm != null) {
+                currentDate = calculateNewDate(currentDate, norm); // Используем calculateNewDate
+                dates.put(i, currentDate);
+            } else {
+                // Обработка отсутствия норматива для этапа
+                System.err.println("Предупреждение: Отсутствует норматив для этапа " + i + ".  Пропуск этапа.");
+                dates.put(i, currentDate); // Или бросать исключение, если это недопустимо
+            }
+        }
+
+        return dates;
+    }
+
 
     public LocalDate calculateNewDate(LocalDate startDate, double hoursToAdd) {
         // 1. Преобразование часов в минуты

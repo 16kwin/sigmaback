@@ -53,36 +53,36 @@ public class TimeService {
             }
 
             // Создаем карту для хранения информации об операции
-            Map<String, String> operationInfo = new HashMap<>();
+Map<String, String> operationInfo = new HashMap<>();
 
-            // Если операция найдена
-            if (foundOperation != null) {
-                // Форматируем startTime и stopTime
-                Timestamp startTime = foundOperation.getOperationStartWork();
-                Timestamp stopTime = foundOperation.getOperationStopWork();
+// Если операция найдена
+if (foundOperation != null) {
+    // Форматируем startTime и stopTime
+    Timestamp startTime = foundOperation.getOperationStartWork();
+    Timestamp stopTime = foundOperation.getOperationStopWork();
 
-                String startTimeString = (startTime != null) ? formatTimestamp(startTime) : "0000-00-00 00:00:00";
-                String stopTimeString = (stopTime != null) ? formatTimestamp(stopTime) : "0000-00-00 00:00:00";
+    String startTimeString = (startTime != null) ? formatTimestamp(startTime) : "Нет данных";
+    String stopTimeString = (stopTime != null) ? formatTimestamp(stopTime) : "Нет данных";
 
-                operationInfo.put("startTime", startTimeString);
-                operationInfo.put("stopTime", stopTimeString);
+    operationInfo.put("startTime", startTimeString);
+    operationInfo.put("stopTime", stopTimeString);
 
-                // Вычисляем время выполнения
-                double workTime = operationService.calculateWorkTime(startTime, stopTime);
+    // Вычисляем время выполнения
+    double workTime = operationService.calculateWorkTime(startTime, stopTime);
 
-                // Форматируем время выполнения
-                String workTimeString = operationService.formatWorkTime(workTime);
+    // Форматируем время выполнения
+    String workTimeString = operationService.formatWorkTime(workTime);
 
-                operationInfo.put("workTime", workTimeString);
-            } else {
-                // Если операция не найдена
-                operationInfo.put("startTime", "0000-00-00 00:00:00");
-                operationInfo.put("stopTime", "0000-00-00 00:00:00");
-                operationInfo.put("workTime", "00:00:00");
-            }
+    operationInfo.put("workTime", workTimeString);
+} else {
+    // Если операция не найдена
+    operationInfo.put("startTime", "Нет данных");
+    operationInfo.put("stopTime", "Нет данных");
+    operationInfo.put("workTime", "00:00:00"); // Или тоже "Нет данных", если хотите
+}
 
-            // Добавляем информацию об операции в карту результатов
-            results.put(operationName, operationInfo);
+// Добавляем информацию об операции в карту результатов
+results.put(operationName, operationInfo);
         }
 
         // Возвращаем результат

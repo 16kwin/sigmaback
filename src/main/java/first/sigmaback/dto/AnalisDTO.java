@@ -80,7 +80,37 @@ public class AnalisDTO {
      private String TransportTimeExceeded;
      private String vihodControlTimeExceeded;
 
-     public LocalDate newDate;
+    public LocalDate planDate1;
+    public LocalDate planDate2;
+    public LocalDate planDate3;
+    public LocalDate planDate4;
+    public LocalDate planDate5;
+    public LocalDate planDate6;
+    public LocalDate planDate7;
      
+     public LocalDate  factDate1;
+    public LocalDate  factDate2;
+    public LocalDate  factDate3;
+    public LocalDate  factDate4;
+    public LocalDate  factDate5;
+    public LocalDate  factDate6;
+    public LocalDate  factDate7;
 
+private String vhodControlEmployee;
+    private String podkluchenieEmployee;
+    private String proverkaMehanikomEmployee;
+    private String proverkaElectronEmployee;
+    private String proverkaTehnologomEmployee;
+    private String vihodControlEmployee;
+    private String transportPolozhenieEmployee;
+
+    private String timeBetweenVhodAndPodkluchenie;
+private String timeBetweenPodkluchenieAndProverkaMehanikom;
+private String timeBetweenProverkaMehanikomAndProverkaElectron;
+private String timeBetweenProverkaElectronAndProverkaTehnologom;
+private String timeBetweenProverkaTehnologomAndVihodControl;
+private String timeBetweenVihodControlAndTransportPolozhenie;
+private String totalTimeBetweenOperations;
+
+private String percentagePlanPpp;
 }
