@@ -575,13 +575,12 @@ String totalTime = sumWorkTimes2(
 // Устанавливаем общую сумму в DTO
 dto.setTotalTimeBetweenOperations(totalTime);
 
-// ... (existing code) ...
 
 // Получаем planPpp из DTO (предполагается, что planPpp - это double в минутах)
 double planPppMinutes = dto.getPlanPpp();
 
 // Преобразуем planPpp в секунды
-double planPppSeconds = planPppMinutes * 60;
+double planPppSeconds = planPppMinutes * 3600;
 
 // Вычисляем totalOperationsWorkTime в секундах
 long totalOperationsWorkTimeSeconds = 0;
@@ -601,7 +600,31 @@ String formattedPercentage = String.format("%.2f%%", percentage);
 // Устанавливаем результат в DTO
 dto.setPercentagePlanPpp(formattedPercentage);
 
+
 // ... (existing code) ...
+
+// Получаем значения из DTO
+String totalOperationsWorkTime2 = dto.getTotalOperationsWorkTime(); // Используем totalOperationsWorkTime
+double problemHours = dto.getTotalProblemHours();
+String timeBetweenOperations = dto.getTotalTimeBetweenOperations();
+
+// Преобразуем все значения в секунды
+long workTimeInSeconds = parseTimeToSeconds(totalOperationsWorkTime2);
+long problemTimeInSeconds = (long) (problemHours * 3600); // Преобразуем часы в секунды
+long betweenTimeInSeconds = parseTimeToSeconds(timeBetweenOperations);
+
+// Суммируем все значения в секундах
+long totalTimeInSeconds = workTimeInSeconds + problemTimeInSeconds + betweenTimeInSeconds;
+
+// Форматируем общую сумму секунд в "HH:mm:ss"
+String formattedTotalTime = formatSecondsToTime(totalTimeInSeconds);
+
+// Устанавливаем результат в DTO
+dto.setTotalTimeAll(formattedTotalTime);
+
+// ... (existing code) ...
+
+
         return dto;
     }
 
@@ -614,7 +637,7 @@ dto.setPercentagePlanPpp(formattedPercentage);
         if (timeServiceResults.containsKey(operationName) && timeServiceResults.get(operationName).containsKey(valueName)) {
             return timeServiceResults.get(operationName).get(valueName);
         }
-        return "00:00:00"; // Or return a default value like "00:00:00" if you prefer
+        return "00:00:00";
     }
 
 
@@ -678,5 +701,14 @@ private double parseDouble(String value) {
         System.err.println("Ошибка преобразования числа: " + value + ". Установлено значение по умолчанию 0.0");
         return 0.0;
     }
+
+}
+// Метод для преобразования секунд в формат "HH:mm:ss"
+private String formatSecondsToTime(long totalSeconds) {
+    long hours = totalSeconds / 3600;
+    long minutes = (totalSeconds % 3600) / 60;
+    long seconds = totalSeconds % 60;
+
+    return String.format("%02d:%02d:%02d", hours, minutes, seconds);
 }
 }
