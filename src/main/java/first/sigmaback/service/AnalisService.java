@@ -5,6 +5,8 @@ import first.sigmaback.dto.AnalisFullDTO;
 import first.sigmaback.dto.AnalisHeaderDTO;
 import first.sigmaback.entity.Ppp;
 import first.sigmaback.repository.PppRepository;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,7 +17,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 
-
+@Slf4j
 @Service
 public class AnalisService {
 
@@ -45,19 +47,34 @@ public AnalisService(PppRepository pppRepository, AnalisHeaderService analisHead
         // 1. Получаем данные для заголовка
         AnalisHeaderDTO header = analisHeaderService.getNorms();
 
-        // 2. Получаем данные о транзакциях
+        // 2. Получаем и преобразуем транзакции
         List<Ppp> ppps = pppRepository.findAll();
-
-        // 3. Преобразуем Ppp в AnalisDTO
-        List<AnalisDTO> analisDTOs = ppps.stream()
+        List<AnalisDTO> transactions = ppps.stream()
                 .map(this::convertToAnalisDTO)
                 .collect(Collectors.toList());
 
-        // 4. Создаем AnalisFullDTO и заполняем данными
+    long overfulfilledCount = 0;
+    long underfulfilledCount = 0;
+
+    for (AnalisDTO dto : transactions) {
+        if (dto.getPercentagePlanPpp() != null) {
+            double percentage = parsePercentage(dto.getPercentagePlanPpp());
+            if (percentage >= 100.0) {
+                overfulfilledCount++;
+            } else {
+                underfulfilledCount++;
+            }
+        }
+    }
+
+    // 3. Обновляем заголовок
+    header.setOverfulfilledTransactionsCount(overfulfilledCount);
+    header.setUnderfulfilledTransactionsCount(underfulfilledCount);
+
+        // 4. Возвращаем результат
         AnalisFullDTO fullDTO = new AnalisFullDTO();
         fullDTO.setHeader(header);
-        fullDTO.setTransactions(analisDTOs);
-
+        fullDTO.setTransactions(transactions);
         return fullDTO;
     }
 
@@ -136,10 +153,36 @@ public AnalisService(PppRepository pppRepository, AnalisHeaderService analisHead
         dto.setTransportPolozhenieStopTime(getOperationValue(timeServiceResults, "Транспортное положение", "stopTime"));
         dto.setTransportPolozhenieWorkTime(getOperationValue(timeServiceResults, "Транспортное положение", "workTime"));
 
-        dto.setMechanicTotalWorktime(sumWorkTimes(mechanicOptionWorktype, getOperationValue(timeServiceResults, "Проверка механиком", "workTime")));
-        dto.setElectronTotalWorktime(sumWorkTimes(electronOptionWorktype, getOperationValue(timeServiceResults, "Проверка электронщиком", "workTime")));
-        dto.setElectricTotalWorktime(sumWorkTimes(electricOptionWorktype, getOperationValue(timeServiceResults, "Подключение", "workTime")));
-        dto.setTechTotalWorktime(sumWorkTimes(techOptionWorktype, getOperationValue(timeServiceResults, "Проверка технологом", "workTime")));
+String mechanicOptionWorktype2 = getOperationValue(timeServiceResults, "Проверка механиком", "workTime");
+String electronOptionWorktype2 = getOperationValue(timeServiceResults, "Проверка электронщиком", "workTime");
+String electricOptionWorktype2 = getOperationValue(timeServiceResults, "Подключение", "workTime");
+String techOptionWorktype2 = getOperationValue(timeServiceResults, "Проверка технологом", "workTime");
+
+if ("Нет данных".equals(mechanicOptionWorktype2) || "Нет данных".equals(getOperationValue(timeServiceResults, "Проверка механиком", "workTime"))) {
+    dto.setMechanicTotalWorktime("Нет данных");
+} else {
+    dto.setMechanicTotalWorktime(sumWorkTimes(mechanicOptionWorktype2, getOperationValue(timeServiceResults, "Проверка механиком", "workTime")));
+}
+
+if ("Нет данных".equals(electronOptionWorktype2) || "Нет данных".equals(getOperationValue(timeServiceResults, "Проверка электронщиком", "workTime"))) {
+    dto.setElectronTotalWorktime("Нет данных");
+} else {
+    dto.setElectronTotalWorktime(sumWorkTimes(electronOptionWorktype2, getOperationValue(timeServiceResults, "Проверка электронщиком", "workTime")));
+}
+
+if ("Нет данных".equals(electricOptionWorktype2) || "Нет данных".equals(getOperationValue(timeServiceResults, "Подключение", "workTime"))) {
+    dto.setElectricTotalWorktime("Нет данных");
+} else {
+    dto.setElectricTotalWorktime(sumWorkTimes(electricOptionWorktype2, getOperationValue(timeServiceResults, "Подключение", "workTime")));
+}
+
+if ("Нет данных".equals(techOptionWorktype2) || "Нет данных".equals(getOperationValue(timeServiceResults, "Проверка технологом", "workTime"))) {
+    dto.setTechTotalWorktime("Нет данных");
+} else {
+    dto.setTechTotalWorktime(sumWorkTimes(techOptionWorktype2, getOperationValue(timeServiceResults, "Проверка технологом", "workTime")));
+}
+
+
 
         // Calculate totalOperationsWorkTime
         String totalOperationsWorkTime = sumWorkTimes(
@@ -189,7 +232,13 @@ try {
 long vhodControlWorkTimeSeconds = parseTimeToSeconds(dto.getVhodControlWorkTime()); // Преобразуем в секунды
 long vhodNormSeconds = (long) (vhodNorm * 3600); // Преобразуем vhodNorm в секунды
 
-String vhodControlTimeExceeded = (vhodControlWorkTimeSeconds <= vhodNormSeconds) ? "Да" : "Нет";
+String vhodControlTimeExceeded;
+if (vhodControlWorkTimeSeconds == -1 || vhodNormSeconds == 0) {
+    vhodControlTimeExceeded = "Нет данных";
+} else {
+    double percentageExceeded = ((double) vhodNormSeconds / vhodControlWorkTimeSeconds) * 100;
+    vhodControlTimeExceeded = String.format("%.2f%%", percentageExceeded);
+}
 dto.setVhodControlTimeExceeded(vhodControlTimeExceeded);
 
 
@@ -224,14 +273,19 @@ double electricProblemHours = dto.getElectricProblemHours();
 long electricProblemHoursSeconds = (long) (electricProblemHours * 3600);
 
 // Вычитаем время проблем из общего времени
-long cleanElectricTimeSeconds = electricTotalWorkTimeSeconds - electricProblemHoursSeconds;
+long cleanElectricTimeSeconds = (electricTotalWorkTimeSeconds == -1 || electricProblemHoursSeconds == -1) ? -1 : electricTotalWorkTimeSeconds - electricProblemHoursSeconds;
 
 // Суммируем нормативы
 double totalElectricNorm = podklyuchenieNorm + electricNormFull;
 long totalElectricNormSeconds = (long) (totalElectricNorm * 3600);
 
-// Сравниваем и устанавливаем результат
-String electricTimeExceeded = (cleanElectricTimeSeconds < totalElectricNormSeconds) ? "Да" : "Нет";
+String electricTimeExceeded;
+if (cleanElectricTimeSeconds == -1 || totalElectricNormSeconds == 0) {
+    electricTimeExceeded = "Нет данных";
+} else {
+    double percentageExceeded = ((double) totalElectricNormSeconds / cleanElectricTimeSeconds) * 100;
+    electricTimeExceeded = String.format("%.2f%%", percentageExceeded);
+}
 dto.setElectricTimeExceeded(electricTimeExceeded);
 
 
@@ -263,14 +317,19 @@ double mechProblemHours = dto.getMechanicProblemHours();
 long mechProblemHoursSeconds = (long) (mechProblemHours * 3600);
 
 // Вычитаем время проблем из общего времени
-long cleanmechTimeSeconds = mechTotalWorkTimeSeconds - mechProblemHoursSeconds;
+long cleanmechTimeSeconds = (mechTotalWorkTimeSeconds == -1 || mechProblemHoursSeconds == -1) ? -1 : mechTotalWorkTimeSeconds - mechProblemHoursSeconds;
 
 // Суммируем нормативы
 double totalmechNorm = mechOperationNorm + mechNormFull;
 long totalmechNormSeconds = (long) (totalmechNorm * 3600);
 
-// Сравниваем и устанавливаем результат
-String mechTimeExceeded = (cleanmechTimeSeconds < totalmechNormSeconds) ? "Да" : "Нет";
+String mechTimeExceeded;
+if (cleanmechTimeSeconds == -1 || totalmechNormSeconds == 0) {
+    mechTimeExceeded = "Нет данных";
+} else {
+    double percentageExceeded = ((double) totalmechNormSeconds / cleanmechTimeSeconds) * 100;
+    mechTimeExceeded = String.format("%.2f%%", percentageExceeded);
+}
 dto.setMechanicTimeExceeded(mechTimeExceeded);
 
 
@@ -305,14 +364,19 @@ double electronProblemHours = dto.getElectronProblemHours();
 long electronProblemHoursSeconds = (long) (electronProblemHours * 3600);
 
 // Вычитаем время проблем из общего времени
-long cleanElectronTimeSeconds = electronTotalWorkTimeSeconds - electronProblemHoursSeconds;
+long cleanElectronTimeSeconds = (electronTotalWorkTimeSeconds == -1 || electronProblemHoursSeconds == -1) ? -1 : electronTotalWorkTimeSeconds - electronProblemHoursSeconds;
 
 // Суммируем нормативы
 double totalElectronNorm = podklyuchenieNorm + electronNormFull;
 long totalElectronNormSeconds = (long) (totalElectronNorm * 3600);
 
-// Сравниваем и устанавливаем результат
-String electronTimeExceeded = (cleanElectronTimeSeconds < totalElectronNormSeconds) ? "Да" : "Нет";
+String electronTimeExceeded;
+if (cleanElectronTimeSeconds == -1 || totalElectronNormSeconds == 0) {
+    electronTimeExceeded = "Нет данных";
+} else {
+    double percentageExceeded = ((double) totalElectronNormSeconds / cleanElectronTimeSeconds) * 100;
+    electronTimeExceeded = String.format("%.2f%%", percentageExceeded);
+}
 dto.setElectronTimeExceeded(electronTimeExceeded);
 
 
@@ -346,14 +410,19 @@ double techProblemHours = dto.getTechProblemHours();
 long techProblemHoursSeconds = (long) (techProblemHours * 3600);
 
 // Вычитаем время проблем из общего времени
-long cleantechTimeSeconds = techTotalWorkTimeSeconds - techProblemHoursSeconds;
+long cleantechTimeSeconds = (techTotalWorkTimeSeconds == -1 || techProblemHoursSeconds == -1) ? -1 : techTotalWorkTimeSeconds - techProblemHoursSeconds;
 
 // Суммируем нормативы
 double totaltechNorm = podklyuchenieNorm + techNormFull;
 long totaltechNormSeconds = (long) (totaltechNorm * 3600);
 
-// Сравниваем и устанавливаем результат
-String techTimeExceeded = (cleantechTimeSeconds < totaltechNormSeconds) ? "Да" : "Нет";
+String techTimeExceeded;
+if (cleantechTimeSeconds == -1 || totaltechNormSeconds == 0) {
+    techTimeExceeded = "Нет данных";
+} else {
+    double percentageExceeded = ((double) totaltechNormSeconds / cleantechTimeSeconds) * 100;
+    techTimeExceeded = String.format("%.2f%%", percentageExceeded);
+}
 dto.setTechTimeExceeded(techTimeExceeded);
 
 
@@ -374,9 +443,14 @@ try {
 long vihodControlWorkTimeSeconds = parseTimeToSeconds(dto.getVihodControlWorkTime()); // Преобразуем в секунды
 long vihodNormSeconds = (long) (vihodNorm * 3600); // Преобразуем vihodNorm в секунды
 
-String vihodControlTimeExceeded = (vihodControlWorkTimeSeconds <= vihodNormSeconds) ? "Да" : "Нет";
+String vihodControlTimeExceeded;
+if (vihodControlWorkTimeSeconds == -1 || vihodNormSeconds == 0) {
+    vihodControlTimeExceeded = "Нет данных";
+} else {
+    double percentageExceeded = ((double) vihodNormSeconds / vihodControlWorkTimeSeconds) * 100;
+    vihodControlTimeExceeded = String.format("%.2f%%", percentageExceeded);
+}
 dto.setVihodControlTimeExceeded(vihodControlTimeExceeded);
-
 
 String transportNormString = analisHeaderService.getNorms().getTransportNorm(); // Получаем transportNorm как String
 double transportNorm;
@@ -393,7 +467,13 @@ try {
 long transportWorkTimeSeconds = parseTimeToSeconds(dto.getTransportPolozhenieWorkTime()); // Преобразуем в секунды
 long transportNormSeconds = (long) (transportNorm * 3600); // Преобразуем transportNorm в секунды
 
-String transportTimeExceeded = (transportWorkTimeSeconds <= transportNormSeconds) ? "Да" : "Нет";
+String transportTimeExceeded;
+if (transportWorkTimeSeconds == -1 || transportNormSeconds == 0) {
+    transportTimeExceeded = "Нет данных"; // Если норма времени равна 0 или время работы равно -1, то нет данных для расчета
+} else {
+    double percentageExceeded = ((double) transportNormSeconds / transportWorkTimeSeconds) * 100;
+    transportTimeExceeded = String.format("%.2f%%", percentageExceeded); // Форматируем в проценты
+}
 dto.setTransportTimeExceeded(transportTimeExceeded);
 
 
@@ -588,11 +668,19 @@ for (Map.Entry<String, Map<String, String>> entry : timeServiceResults.entrySet(
     String operationName = entry.getKey();
     Map<String, String> operationInfo = entry.getValue();
     String workTime = operationInfo.get("workTime");
-    totalOperationsWorkTimeSeconds += parseTimeToSeconds(workTime);
+    long workTimeInSeconds = parseTimeToSeconds(workTime); // Получаем время в секундах
+    if (workTimeInSeconds != -1) { // Проверяем, не равно ли -1
+        totalOperationsWorkTimeSeconds += workTimeInSeconds; // Прибавляем, только если не равно -1
+    }
 }
 
 // Вычисляем процент
-double percentage = (planPppSeconds / totalOperationsWorkTimeSeconds) * 100;
+double percentage;
+if (totalOperationsWorkTimeSeconds == 0) {
+    percentage = 0; // Если делим на 0, то процент равен 0
+} else {
+    percentage = (double) (planPppSeconds *100) / totalOperationsWorkTimeSeconds;
+}
 
 // Форматируем результат
 String formattedPercentage = String.format("%.2f%%", percentage);
@@ -610,8 +698,16 @@ String timeBetweenOperations = dto.getTotalTimeBetweenOperations();
 
 // Преобразуем все значения в секунды
 long workTimeInSeconds = parseTimeToSeconds(totalOperationsWorkTime2);
+if (workTimeInSeconds == -1) {
+    workTimeInSeconds = 0;
+}
+
 long problemTimeInSeconds = (long) (problemHours * 3600); // Преобразуем часы в секунды
+
 long betweenTimeInSeconds = parseTimeToSeconds(timeBetweenOperations);
+if (betweenTimeInSeconds == -1) {
+    betweenTimeInSeconds = 0;
+}
 
 // Суммируем все значения в секундах
 long totalTimeInSeconds = workTimeInSeconds + problemTimeInSeconds + betweenTimeInSeconds;
@@ -646,34 +742,21 @@ dto.setTotalTimeAll(formattedTotalTime);
 
 
     // Helper method to sum two work times in "HH:mm:ss" format
-   private String sumWorkTimes(String time1, String time2) {
-        long totalSeconds = 0;
-
-        if (time1 != null && !time1.isEmpty()) {
-            totalSeconds += parseTimeToSeconds(time1);
-        }
-
-        if (time2 != null && !time2.isEmpty()) {
-            totalSeconds += parseTimeToSeconds(time2);
-        }
-
-        long HH = totalSeconds / 3600;
-        long MM = (totalSeconds % 3600) / 60;
-        long SS = totalSeconds % 60;
-
-        return String.format("%02d:%02d:%02d", HH, MM, SS);
-    }
-
-
-
-// Helper method to sum work times in "HH:mm:ss" format
-private String sumWorkTimes2(String... times) {
+private String sumWorkTimes(String time1, String time2) {
     long totalSeconds = 0;
 
-    for (String time : times) {
-        if (time != null && !time.isEmpty() && !"Нет данных".equals(time)) {
-            totalSeconds += parseTimeToSeconds(time);
-        }
+    long seconds1 = parseTimeToSeconds(time1);
+    if (seconds1 != -1) {
+        totalSeconds += seconds1;
+    }
+
+    long seconds2 = parseTimeToSeconds(time2);
+    if (seconds2 != -1) {
+        totalSeconds += seconds2;
+    }
+
+    if (seconds1 == -1 && seconds2 == -1) {
+        return "Нет данных";
     }
 
     long HH = totalSeconds / 3600;
@@ -684,15 +767,70 @@ private String sumWorkTimes2(String... times) {
 }
 
 
+// Helper method to sum work times in "HH:mm:ss" format
+private String sumWorkTimes2(String... times) {
+    long totalSeconds = 0;
+
+    for (String time : times) {
+        long seconds = parseTimeToSeconds(time);
+        if (seconds != -1) {
+            totalSeconds += seconds;
+        }
+    }
+
+   boolean allNoData = true;
+    for (String time : times) {
+        if (time != null && !time.isEmpty() && !time.equals("Нет данных")) {
+            allNoData = false;
+            break;
+        }
+    }
+
+    if (allNoData) {
+        return "Нет данных";
+    }
+
+    long HH = totalSeconds / 3600;
+    long MM = (totalSeconds % 3600) / 60;
+    long SS = totalSeconds % 60;
+
+    return String.format("%02d:%02d:%02d", HH, MM, SS);
+}
+
+
+private double parsePercentage(String percentageStr) {
+    if (percentageStr == null || percentageStr.isEmpty()) {
+        return 0.0;
+    }
+    try {
+        // Заменяем запятую на точку и удаляем %
+        String normalized = percentageStr.replace("%", "").replace(",", ".").trim();
+        return Double.parseDouble(normalized);
+    } catch (NumberFormatException e) {
+        log.error("Некорректный формат percentagePlanPpp: {}", percentageStr);
+        return 0.0;
+    }
+}
+
     // Helper method to parse time string in "HH:mm:ss" format to seconds
-    private long parseTimeToSeconds(String time) {
+private long parseTimeToSeconds(String time) {
+    if ("Нет данных".equals(time)) {
+        return -1;
+    }
+    try {
         String[] parts = time.split(":");
         long HH = Long.parseLong(parts[0]);
         long MM = Long.parseLong(parts[1]);
         long SS = Long.parseLong(parts[2]);
 
         return HH * 3600 + MM * 60 + SS;
+    } catch (Exception e) {
+        // Обработка ошибок при парсинге времени
+        System.err.println("Ошибка при парсинге времени: " + time);
+        return -1; // Возвращаем -1 в случае ошибки
     }
+
+}
     //Вспомогательный метод для безопасного преобразования String в double
 private double parseDouble(String value) {
     try {

@@ -78,7 +78,7 @@ if (foundOperation != null) {
     // Если операция не найдена
     operationInfo.put("startTime", "Нет данных");
     operationInfo.put("stopTime", "Нет данных");
-    operationInfo.put("workTime", "00:00:00"); // Или тоже "Нет данных", если хотите
+    operationInfo.put("workTime", "Нет данных"); // Или тоже "Нет данных", если хотите
 }
 
 // Добавляем информацию об операции в карту результатов

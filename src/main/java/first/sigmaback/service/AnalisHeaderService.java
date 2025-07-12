@@ -4,6 +4,7 @@ import first.sigmaback.dto.AnalisHeaderDTO;
 import first.sigmaback.entity.OperationNorm;
 import first.sigmaback.repository.OperationNormRepository;
 import first.sigmaback.repository.EmployeesRepository;
+import first.sigmaback.repository.PppRepository;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -11,10 +12,12 @@ public class AnalisHeaderService {
 
     private final OperationNormRepository operationNormRepository;
     private final EmployeesRepository employeesRepository;
+    private final PppRepository pppRepository;
 
-    public AnalisHeaderService(OperationNormRepository operationNormRepository, EmployeesRepository employeesRepository) {
+    public AnalisHeaderService(OperationNormRepository operationNormRepository, EmployeesRepository employeesRepository, PppRepository pppRepository) {
         this.operationNormRepository = operationNormRepository;
         this.employeesRepository = employeesRepository;
+        this.pppRepository = pppRepository;
     }
 
     public AnalisHeaderDTO getNorms() {
@@ -27,23 +30,15 @@ public class AnalisHeaderService {
         OperationNorm Vihod = operationNormRepository.findById("Выходной контроль").orElse(null);
         OperationNorm Transport = operationNormRepository.findById("Транспортное положение").orElse(null);
 
-        // Получаем количество работников разных профессий
-        long mechanicCount = employeesRepository.findAll().stream()
-                .filter(employee -> employee.getEmployeesSpecialization().equals("Механик"))
-                .count();
-        long electronCount = employeesRepository.findAll().stream()
-                .filter(employee -> employee.getEmployeesSpecialization().equals("Электронщик"))
-                .count();
-        long techCount = employeesRepository.findAll().stream()
-                .filter(employee -> employee.getEmployeesSpecialization().equals("Технолог"))
-                .count();
-        long elecCount = employeesRepository.findAll().stream()
-                .filter(employee -> employee.getEmployeesSpecialization().equals("Электрик"))
-                .count();
-        long conplectCount = employeesRepository.findAll().stream()
-                .filter(employee -> employee.getEmployeesSpecialization().equals("Комплектация"))
-                .count();
+        // Получаем количество уникальных работников разных профессий
+        long mechanicCount = employeesRepository.findDistinctEmployeesNameByEmployeesSpecializationIgnoreCase("Механик").size();
+        long electronCount = employeesRepository.findDistinctEmployeesNameByEmployeesSpecializationIgnoreCase("Электронщик").size();
+        long techCount = employeesRepository.findDistinctEmployeesNameByEmployeesSpecializationIgnoreCase("Технолог").size();
+        long elecCount = employeesRepository.findDistinctEmployeesNameByEmployeesSpecializationIgnoreCase("Электрик").size();
+        long conplectCount = employeesRepository.findDistinctEmployeesNameByEmployeesSpecializationIgnoreCase("Комплектация").size();
 
+        // Получаем количество транзакций со статусом "В работе"
+        long inProgressTransactionsCount = pppRepository.countByStatus("В работе");
 
         // Создаем DTO и заполняем данными
         AnalisHeaderDTO dto = new AnalisHeaderDTO();
@@ -59,6 +54,9 @@ public class AnalisHeaderService {
         dto.setTechCount((int) techCount);
         dto.setElecCount((int) elecCount);
         dto.setConplectCount((int) conplectCount);
+
+        // Устанавливаем количество транзакций со статусом "В работе"
+        dto.setInProgressTransactionsCount(inProgressTransactionsCount);
 
         return dto;
     }

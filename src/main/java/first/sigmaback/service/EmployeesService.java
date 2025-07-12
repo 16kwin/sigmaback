@@ -38,7 +38,7 @@ public class EmployeesService {
 
         // Для каждой операции из списка
         for (String operationName : operationNames) {
-            String employeeName = ""; // Значение по умолчанию: пустая строка
+            String employeeName = "Нет данных"; // Значение по умолчанию: пустая строка
 
             // Ищем операцию в списке полученных операций
             for (Operation operation : operations) {
