@@ -20,7 +20,7 @@ public class SigmabackApplication {
     public CorsFilter corsFilter() {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:3000")); // Разрешите ваш фронтенд
+        config.setAllowedOrigins(List.of("http://194.87.56.253:3000")); // Разрешите ваш фронтенд
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")); // Разрешенные методы
         config.setAllowedHeaders(List.of("*")); // Разрешите все заголовки (или перечислите нужные)
         config.setAllowCredentials(true); // Если используете куки или авторизацию
