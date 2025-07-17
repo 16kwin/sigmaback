@@ -153,33 +153,44 @@ public AnalisService(PppRepository pppRepository, AnalisHeaderService analisHead
         dto.setTransportPolozhenieStopTime(getOperationValue(timeServiceResults, "Транспортное положение", "stopTime"));
         dto.setTransportPolozhenieWorkTime(getOperationValue(timeServiceResults, "Транспортное положение", "workTime"));
 
-String mechanicOptionWorktype2 = getOperationValue(timeServiceResults, "Проверка механиком", "workTime");
-String electronOptionWorktype2 = getOperationValue(timeServiceResults, "Проверка электронщиком", "workTime");
-String electricOptionWorktype2 = getOperationValue(timeServiceResults, "Подключение", "workTime");
-String techOptionWorktype2 = getOperationValue(timeServiceResults, "Проверка технологом", "workTime");
+String mechanicWorkTime = getOperationValue(timeServiceResults, "Проверка механиком", "workTime");
+long mechanicOptionSeconds = parseTimeToSeconds(mechanicOptionWorktype);
+long mechanicWorkSeconds = parseTimeToSeconds(mechanicWorkTime);
 
-if ("Нет данных".equals(mechanicOptionWorktype2) || "Нет данных".equals(getOperationValue(timeServiceResults, "Проверка механиком", "workTime"))) {
+if (mechanicOptionSeconds == -1 || mechanicWorkSeconds == -1) {
     dto.setMechanicTotalWorktime("Нет данных");
 } else {
-    dto.setMechanicTotalWorktime(sumWorkTimes(mechanicOptionWorktype2, getOperationValue(timeServiceResults, "Проверка механиком", "workTime")));
+    dto.setMechanicTotalWorktime(sumWorkTimes(mechanicOptionWorktype, mechanicWorkTime));
 }
 
-if ("Нет данных".equals(electronOptionWorktype2) || "Нет данных".equals(getOperationValue(timeServiceResults, "Проверка электронщиком", "workTime"))) {
+String electronWorkTime = getOperationValue(timeServiceResults, "Проверка электронщиком", "workTime");
+long electronOptionSeconds = parseTimeToSeconds(electronOptionWorktype);
+long electronWorkSeconds = parseTimeToSeconds(electronWorkTime);
+
+if (electronOptionSeconds == -1 || electronWorkSeconds == -1) {
     dto.setElectronTotalWorktime("Нет данных");
 } else {
-    dto.setElectronTotalWorktime(sumWorkTimes(electronOptionWorktype2, getOperationValue(timeServiceResults, "Проверка электронщиком", "workTime")));
+    dto.setElectronTotalWorktime(sumWorkTimes(electronOptionWorktype, electronWorkTime));
 }
 
-if ("Нет данных".equals(electricOptionWorktype2) || "Нет данных".equals(getOperationValue(timeServiceResults, "Подключение", "workTime"))) {
+String electricWorkTime = getOperationValue(timeServiceResults, "Подключение", "workTime");
+long electricOptionSeconds = parseTimeToSeconds(electricOptionWorktype);
+long electricWorkSeconds = parseTimeToSeconds(electricWorkTime);
+
+if (electricOptionSeconds == -1 || electricWorkSeconds == -1) {
     dto.setElectricTotalWorktime("Нет данных");
 } else {
-    dto.setElectricTotalWorktime(sumWorkTimes(electricOptionWorktype2, getOperationValue(timeServiceResults, "Подключение", "workTime")));
+    dto.setElectricTotalWorktime(sumWorkTimes(electricOptionWorktype, electricWorkTime));
 }
 
-if ("Нет данных".equals(techOptionWorktype2) || "Нет данных".equals(getOperationValue(timeServiceResults, "Проверка технологом", "workTime"))) {
+String techWorkTime = getOperationValue(timeServiceResults, "Проверка технологом", "workTime");
+long techOptionSeconds = parseTimeToSeconds(techOptionWorktype);
+long techWorkSeconds = parseTimeToSeconds(techWorkTime);
+
+if (techOptionSeconds == -1 || techWorkSeconds == -1) {
     dto.setTechTotalWorktime("Нет данных");
 } else {
-    dto.setTechTotalWorktime(sumWorkTimes(techOptionWorktype2, getOperationValue(timeServiceResults, "Проверка технологом", "workTime")));
+    dto.setTechTotalWorktime(sumWorkTimes(techOptionWorktype, techWorkTime));
 }
 
 
@@ -233,8 +244,10 @@ long vhodControlWorkTimeSeconds = parseTimeToSeconds(dto.getVhodControlWorkTime(
 long vhodNormSeconds = (long) (vhodNorm * 3600); // Преобразуем vhodNorm в секунды
 
 String vhodControlTimeExceeded;
-if (vhodControlWorkTimeSeconds == -1 || vhodNormSeconds == 0) {
+if (vhodControlWorkTimeSeconds == -1) {
     vhodControlTimeExceeded = "Нет данных";
+} else if (vhodControlWorkTimeSeconds == 0) {
+    vhodControlTimeExceeded = "100.00%";
 } else {
     double percentageExceeded = ((double) vhodNormSeconds / vhodControlWorkTimeSeconds) * 100;
     vhodControlTimeExceeded = String.format("%.2f%%", percentageExceeded);
@@ -280,8 +293,10 @@ double totalElectricNorm = podklyuchenieNorm + electricNormFull;
 long totalElectricNormSeconds = (long) (totalElectricNorm * 3600);
 
 String electricTimeExceeded;
-if (cleanElectricTimeSeconds == -1 || totalElectricNormSeconds == 0) {
+if (cleanElectricTimeSeconds == -1) {
     electricTimeExceeded = "Нет данных";
+} else if (cleanElectricTimeSeconds == 0) {
+    electricTimeExceeded = "100.00%";
 } else {
     double percentageExceeded = ((double) totalElectricNormSeconds / cleanElectricTimeSeconds) * 100;
     electricTimeExceeded = String.format("%.2f%%", percentageExceeded);
@@ -324,8 +339,10 @@ double totalmechNorm = mechOperationNorm + mechNormFull;
 long totalmechNormSeconds = (long) (totalmechNorm * 3600);
 
 String mechTimeExceeded;
-if (cleanmechTimeSeconds == -1 || totalmechNormSeconds == 0) {
+if (cleanmechTimeSeconds == -1) {
     mechTimeExceeded = "Нет данных";
+} else if (cleanmechTimeSeconds == 0) {
+    mechTimeExceeded = "100.00%";
 } else {
     double percentageExceeded = ((double) totalmechNormSeconds / cleanmechTimeSeconds) * 100;
     mechTimeExceeded = String.format("%.2f%%", percentageExceeded);
@@ -369,10 +386,11 @@ long cleanElectronTimeSeconds = (electronTotalWorkTimeSeconds == -1 || electronP
 // Суммируем нормативы
 double totalElectronNorm = podklyuchenieNorm + electronNormFull;
 long totalElectronNormSeconds = (long) (totalElectronNorm * 3600);
-
 String electronTimeExceeded;
-if (cleanElectronTimeSeconds == -1 || totalElectronNormSeconds == 0) {
+if (cleanElectronTimeSeconds == -1) {
     electronTimeExceeded = "Нет данных";
+} else if (cleanElectronTimeSeconds == 0) {
+    electronTimeExceeded = "100.00%";
 } else {
     double percentageExceeded = ((double) totalElectronNormSeconds / cleanElectronTimeSeconds) * 100;
     electronTimeExceeded = String.format("%.2f%%", percentageExceeded);
@@ -417,8 +435,10 @@ double totaltechNorm = podklyuchenieNorm + techNormFull;
 long totaltechNormSeconds = (long) (totaltechNorm * 3600);
 
 String techTimeExceeded;
-if (cleantechTimeSeconds == -1 || totaltechNormSeconds == 0) {
+if (cleantechTimeSeconds == -1) {
     techTimeExceeded = "Нет данных";
+} else if (cleantechTimeSeconds  == 0) {
+    techTimeExceeded = "100.00%";
 } else {
     double percentageExceeded = ((double) totaltechNormSeconds / cleantechTimeSeconds) * 100;
     techTimeExceeded = String.format("%.2f%%", percentageExceeded);
@@ -444,7 +464,7 @@ long vihodControlWorkTimeSeconds = parseTimeToSeconds(dto.getVihodControlWorkTim
 long vihodNormSeconds = (long) (vihodNorm * 3600); // Преобразуем vihodNorm в секунды
 
 String vihodControlTimeExceeded;
-if (vihodControlWorkTimeSeconds == -1 || vihodNormSeconds == 0) {
+if (vihodControlWorkTimeSeconds == -1 || vihodControlWorkTimeSeconds == 0) {
     vihodControlTimeExceeded = "Нет данных";
 } else {
     double percentageExceeded = ((double) vihodNormSeconds / vihodControlWorkTimeSeconds) * 100;
