@@ -122,7 +122,7 @@ public class EmployeesTableService {
 
        // Calculate hoursMounthPercentage
         if (normAndWorkTime[1] > 0 && hoursMounth != null) {
-            double percentage = ((double) normAndWorkTime[1]/ hoursMounth/3600 ) * 100;
+            double percentage = ((double) normAndWorkTime[1]/hoursMounth/3600 ) * 100;
             dto.setHoursMounthPercentage(String.format("%.2f", percentage).replace('.', ','));
         } else {
             dto.setHoursMounthPercentage("Нет данных");

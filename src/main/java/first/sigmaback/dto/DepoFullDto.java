@@ -7,4 +7,5 @@ import lombok.Data;
 public class DepoFullDto {
     private DepoHeaderDto header;  // Добавляем AnalisHeaderDTO
     private List<DepoDto> transactions;
+        private List<MonthlyTransactionCountDto> months;
 }

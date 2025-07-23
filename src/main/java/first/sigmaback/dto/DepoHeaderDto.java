@@ -11,4 +11,14 @@ public class DepoHeaderDto {
     private int planPppDiff;
     private String planPppDiffPercentage;
     private int noOperationsCount;
+    private int yesOperationsCount;
+    private int vhodControlExceededCount;
+    private int electricExceededCount;
+    private int mechanicExceededCount;
+    private int electronExceededCount;
+    private int techExceededCount;
+    private int vihodControlExceededCount;
+    private int transportExceededCount;
+     private int totalHoursMounth; // Новое поле
+    private int totalWorkTimeHoursFromEmployees; 
 }

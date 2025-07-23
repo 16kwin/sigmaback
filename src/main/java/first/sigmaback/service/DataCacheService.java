@@ -47,9 +47,9 @@ public class DataCacheService {
     @Transactional
     public void loadCache() {
         cacheAnalisData();
-        cacheDepoData();
         generateAndCacheEmployeesData();
-        updateCurrentMonthEmployeesCache(); // Обновляем кэш для текущего месяца
+        updateCurrentMonthEmployeesCache(); 
+        cacheDepoData(); // Обновляем кэш для текущего месяца
     }
 
     private void cacheAnalisData() {

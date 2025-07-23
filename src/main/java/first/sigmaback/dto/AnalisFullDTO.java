@@ -7,4 +7,5 @@ import lombok.Data;
 public class AnalisFullDTO {
     private AnalisHeaderDTO header;  // Добавляем AnalisHeaderDTO
     private List<AnalisDTO> transactions;
+
 }
