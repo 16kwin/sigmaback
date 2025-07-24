@@ -181,73 +181,48 @@ public class DepoService {
         return depoFullDto;
     }
 
-    /**
-     * Метод для получения данных о суммарном времени за текущий месяц.
-     * Извлекает JSON по имени "employees_YYYY-MM", обрабатывает транзакции (список EmployeesDto),
-     * суммирует hoursMounth и totalWorkTime (в часах).
-     *
-     * @return Массив из двух int: [сумма hoursMounth, сумма totalWorkTime в часах].
-     *         Возвращает [0, 0] в случае ошибок или отсутствия данных.
-     */
-    private int[] getMonthlyWorkSummary() {
-        logger.debug("Entering getMonthlyWorkSummary()");
-        long startTime = System.currentTimeMillis();
+private int[] getMonthlyWorkSummary() {
+    logger.debug("Entering getMonthlyWorkSummary()");
+    long startTime = System.currentTimeMillis();
 
-        YearMonth currentMonth = YearMonth.now();
-        String json = getMonthlyJson(currentMonth);
+    // Фиксированное имя JSON (вместо генерации)
+    String json = getFixedJson("Третий json"); 
 
-        // Десериализуем JSON в List<EmployeesDto>
-        List<EmployeesDto> employeesData = deserializeEmployeesJson(json);
+    List<EmployeesDto> employeesData = deserializeEmployeesJson(json);
 
-        if (employeesData == null || employeesData.isEmpty()) {
-            logger.warn("Employees data is null or empty for cache: employees_{}", currentMonth);
-            return new int[]{0, 0}; // Возвращаем 0, 0 в случае ошибки или отсутствия данных
-        }
+    if (employeesData == null || employeesData.isEmpty()) {
+        logger.warn("Employees data is null or empty for: Третий json");
+        return new int[]{0, 0};
+    }
 
-        int totalHoursMounth = 0;
-        long totalWorkTimeSeconds = 0;
+    // Остальная логика БЕЗ ИЗМЕНЕНИЙ
+    int totalHoursMounth = 0;
+    long totalWorkTimeSeconds = 0;
 
-        for (EmployeesDto employee : employeesData) {
-            // Проверяем, что totalWorkTime не null и не равен "00:00:00"
-            if (employee.getTotalWorkTime() != null && !employee.getTotalWorkTime().equals("00:00:00")) {
-
-                // Суммируем hoursMounth (уже Integer)
-                if (employee.getHoursMounth() != null) {
-                    totalHoursMounth += employee.getHoursMounth();
-                }
-
-                // Извлекаем totalWorkTime (String "HH:mm:ss") и конвертируем в секунды
-                totalWorkTimeSeconds += parseTimeToSeconds(employee.getTotalWorkTime());
+    for (EmployeesDto employee : employeesData) {
+        if (employee.getTotalWorkTime() != null && !employee.getTotalWorkTime().equals("00:00:00")) {
+            if (employee.getHoursMounth() != null) {
+                totalHoursMounth += employee.getHoursMounth();
             }
+            totalWorkTimeSeconds += parseTimeToSeconds(employee.getTotalWorkTime());
         }
-
-        // Конвертируем totalWorkTimeSeconds в часы
-        int totalWorkTimeHours = (int) (totalWorkTimeSeconds / 3600);
-
-        long endTime = System.currentTimeMillis();
-        logger.debug("Exiting getMonthlyWorkSummary() after {} ms. TotalHoursMounth: {}, TotalWorkTimeHours: {}",
-                     (endTime - startTime), totalHoursMounth, totalWorkTimeHours);
-
-        return new int[]{totalHoursMounth, totalWorkTimeHours};
     }
 
-    // Вспомогательный метод для получения JSON по имени месяца
-    private String getMonthlyJson(YearMonth yearMonth) {
-        String cacheName = "employees_" + yearMonth.toString();
-        Optional<DataCache> dataCacheOptional = dataCacheRepository.findByJsonName(cacheName);
-        if (!dataCacheOptional.isPresent()) {
-            logger.warn("DataCache with name '{}' not found.", cacheName);
-            return null;
-        }
-        return dataCacheOptional.get().getJson();
-    }
+    int totalWorkTimeHours = (int) (totalWorkTimeSeconds / 3600);
 
-    /**
-     * Вспомогательный метод для десериализации JSON в List<EmployeesDto>.
-     * @param cachedJson JSON строка.
-     * @return Список EmployeesDto или null в случае ошибки.
-     */
-    private List<EmployeesDto> deserializeEmployeesJson(String cachedJson) {
+    logger.debug("Exiting getMonthlyWorkSummary() after {} ms. TotalHoursMounth: {}, TotalWorkTimeHours: {}",
+               (System.currentTimeMillis() - startTime), totalHoursMounth, totalWorkTimeHours);
+
+    return new int[]{totalHoursMounth, totalWorkTimeHours};
+}
+
+// Новый метод для фиксированного JSON
+private String getFixedJson(String jsonName) {
+    Optional<DataCache> dataCacheOptional = dataCacheRepository.findByJsonName(jsonName);
+    return dataCacheOptional.map(DataCache::getJson).orElse(null);
+}
+  
+private List<EmployeesDto> deserializeEmployeesJson(String cachedJson) {
         if (cachedJson == null) {
             logger.warn("Cached JSON is null");
             return null;
@@ -260,10 +235,7 @@ public class DepoService {
         } catch (Exception e) {
             logger.error("Error while converting JSON to List<EmployeesDto>", e);
             return null;
-        }
-    }
-
-
+        }}
     // --- Вспомогательные методы (оставшиеся без изменений) ---
 
     // Преобразуем AnalisDTO в DepoDto
