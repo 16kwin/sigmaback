@@ -46,7 +46,6 @@ public AnalisService(PppRepository pppRepository, AnalisHeaderService analisHead
     public AnalisFullDTO getAllTransactions() {
         // 1. Получаем данные для заголовка
         AnalisHeaderDTO header = analisHeaderService.getNorms();
-
         // 2. Получаем и преобразуем транзакции
         List<Ppp> ppps = pppRepository.findAll();
         List<AnalisDTO> transactions = ppps.stream()
@@ -85,6 +84,7 @@ public AnalisService(PppRepository pppRepository, AnalisHeaderService analisHead
         AnalisDTO dto = new AnalisDTO();
         dto.setTransaction(ppp.getTransaction());
         dto.setStatus(ppp.getStatus());
+
         dto.setPlanPpp(ppp.getPlanPpp() * 8);
         dto.setPlanDateStart(ppp.getPlanDateStart());
         dto.setForecastDateStart(ppp.getForecastDateStart());
@@ -116,6 +116,12 @@ public AnalisService(PppRepository pppRepository, AnalisHeaderService analisHead
         dto.setElectronNorm(electronNorm != null ? Double.parseDouble(electronNorm) : 0.0);
         dto.setElectricNorm(electricNorm != null ? Double.parseDouble(electricNorm) : 0.0);
         dto.setTechNorm(techNorm != null ? Double.parseDouble(techNorm) : 0.0);
+        dto.setTotalProfessionNorms(
+        (dto.getMechanicNorm() != null ? dto.getMechanicNorm() : 0.0) +
+        (dto.getElectronNorm() != null ? dto.getElectronNorm() : 0.0) +
+        (dto.getElectricNorm() != null ? dto.getElectricNorm() : 0.0) +
+        (dto.getTechNorm() != null ? dto.getTechNorm() : 0.0)
+    );
         dto.setMechanicOptionWorktype(mechanicOptionWorktype);
         dto.setElectronOptionWorktype(electronOptionWorktype);
         dto.setElectricOptionWorktype(electricOptionWorktype);
@@ -246,6 +252,8 @@ long vhodNormSeconds = (long) (vhodNorm * 3600); // Преобразуем vhodN
 String vhodControlTimeExceeded;
 if (vhodControlWorkTimeSeconds == -1) {
     vhodControlTimeExceeded = "Нет данных";
+} else if (vhodControlWorkTimeSeconds >= 0 && vhodControlWorkTimeSeconds <= 300) {  // Добавлено
+    vhodControlTimeExceeded = "Контроль руководителя";  // Добавлено
 } else if (vhodControlWorkTimeSeconds == 0) {
     vhodControlTimeExceeded = "100.00%";
 } else {
@@ -295,6 +303,8 @@ long totalElectricNormSeconds = (long) (totalElectricNorm * 3600);
 String electricTimeExceeded;
 if (cleanElectricTimeSeconds == -1) {
     electricTimeExceeded = "Нет данных";
+} else if (cleanElectricTimeSeconds >= 0 && cleanElectricTimeSeconds <= 300) {  // Добавлено
+    electricTimeExceeded = "Контроль руководителя";  // Добавлено
 } else if (cleanElectricTimeSeconds == 0) {
     electricTimeExceeded = "100.00%";
 } else {
@@ -306,7 +316,7 @@ dto.setElectricTimeExceeded(electricTimeExceeded);
 
 
 String mechOperationNormString = analisHeaderService.getNorms().getMechOperationNorm(); // Получаем mechOperationNorm как String
-String mechNormString = results.get("Электрик"); // Получаем mechNorm из OperationService
+String mechNormString = results.get("Механик"); // Получаем mechNorm из OperationService
 double mechOperationNorm;
 double mechNormFull; // Объявляем mechNorm только один раз
 
@@ -341,6 +351,8 @@ long totalmechNormSeconds = (long) (totalmechNorm * 3600);
 String mechTimeExceeded;
 if (cleanmechTimeSeconds == -1) {
     mechTimeExceeded = "Нет данных";
+} else if (cleanmechTimeSeconds >= 0 && cleanmechTimeSeconds <= 300) {  // Добавлено
+    mechTimeExceeded = "Контроль руководителя";  // Добавлено
 } else if (cleanmechTimeSeconds == 0) {
     mechTimeExceeded = "100.00%";
 } else {
@@ -355,7 +367,7 @@ dto.setMechanicTimeExceeded(mechTimeExceeded);
 
 
 String electronOperationNormString = analisHeaderService.getNorms().getElectronOperationNorm(); // Получаем electronOperationNorm как String
-String electronNormString = results.get("Электрик"); // Получаем electronNorm из OperationService
+String electronNormString = results.get("Электронщик"); // Получаем electronNorm из OperationService
 double electronOperationNorm;
 double electronNormFull; // Объявляем electronNorm только один раз
 
@@ -384,11 +396,13 @@ long electronProblemHoursSeconds = (long) (electronProblemHours * 3600);
 long cleanElectronTimeSeconds = (electronTotalWorkTimeSeconds == -1 || electronProblemHoursSeconds == -1) ? -1 : electronTotalWorkTimeSeconds - electronProblemHoursSeconds;
 
 // Суммируем нормативы
-double totalElectronNorm = podklyuchenieNorm + electronNormFull;
+double totalElectronNorm = electronOperationNorm + electronNormFull;
 long totalElectronNormSeconds = (long) (totalElectronNorm * 3600);
 String electronTimeExceeded;
 if (cleanElectronTimeSeconds == -1) {
     electronTimeExceeded = "Нет данных";
+} else if (cleanElectronTimeSeconds >= 0 && cleanElectronTimeSeconds <= 300) {  // Добавлено
+    electronTimeExceeded = "Контроль руководителя";  // Добавлено
 } else if (cleanElectronTimeSeconds == 0) {
     electronTimeExceeded = "100.00%";
 } else {
@@ -402,7 +416,7 @@ dto.setElectronTimeExceeded(electronTimeExceeded);
 
 
 String techOperationNormString = analisHeaderService.getNorms().getTechOperationNorm(); // Получаем techOperationNorm как String
-String techNormString = results.get("Электрик"); // Получаем techNorm из OperationService
+String techNormString = results.get("Технолог"); // Получаем techNorm из OperationService
 double techOperationNorm;
 double techNormFull; // Объявляем techNorm только один раз
 
@@ -411,7 +425,7 @@ try {
     techOperationNorm = Double.parseDouble(techOperationNormString);
 } catch (NumberFormatException e) {
     System.err.println("Ошибка: Невозможно преобразовать podklyuchenieNorm в число. Установлено значение по умолчанию 0.0");
-    podklyuchenieNorm = 0.0;
+    techOperationNorm = 0.0;
 }
 
 // Преобразуем techNorm в double
@@ -431,13 +445,15 @@ long techProblemHoursSeconds = (long) (techProblemHours * 3600);
 long cleantechTimeSeconds = (techTotalWorkTimeSeconds == -1 || techProblemHoursSeconds == -1) ? -1 : techTotalWorkTimeSeconds - techProblemHoursSeconds;
 
 // Суммируем нормативы
-double totaltechNorm = podklyuchenieNorm + techNormFull;
+double totaltechNorm = techOperationNorm + techNormFull;
 long totaltechNormSeconds = (long) (totaltechNorm * 3600);
 
 String techTimeExceeded;
 if (cleantechTimeSeconds == -1) {
     techTimeExceeded = "Нет данных";
-} else if (cleantechTimeSeconds  == 0) {
+} else if (cleantechTimeSeconds >= 0 && cleantechTimeSeconds <= 300) {  // Добавлено
+    techTimeExceeded = "Контроль руководителя";  // Добавлено
+} else if (cleantechTimeSeconds == 0) {
     techTimeExceeded = "100.00%";
 } else {
     double percentageExceeded = ((double) totaltechNormSeconds / cleantechTimeSeconds) * 100;
@@ -466,6 +482,8 @@ long vihodNormSeconds = (long) (vihodNorm * 3600); // Преобразуем vih
 String vihodControlTimeExceeded;
 if (vihodControlWorkTimeSeconds == -1 || vihodControlWorkTimeSeconds == 0) {
     vihodControlTimeExceeded = "Нет данных";
+} else if (vihodControlWorkTimeSeconds >= 0 && vihodControlWorkTimeSeconds <= 300) {  // Добавлено
+    vihodControlTimeExceeded = "Контроль руководителя";  // Добавлено
 } else {
     double percentageExceeded = ((double) vihodNormSeconds / vihodControlWorkTimeSeconds) * 100;
     vihodControlTimeExceeded = String.format("%.2f%%", percentageExceeded);
@@ -486,13 +504,14 @@ try {
 
 long transportWorkTimeSeconds = parseTimeToSeconds(dto.getTransportPolozhenieWorkTime()); // Преобразуем в секунды
 long transportNormSeconds = (long) (transportNorm * 3600); // Преобразуем transportNorm в секунды
-
 String transportTimeExceeded;
 if (transportWorkTimeSeconds == -1 || transportNormSeconds == 0) {
-    transportTimeExceeded = "Нет данных"; // Если норма времени равна 0 или время работы равно -1, то нет данных для расчета
+    transportTimeExceeded = "Нет данных";
+} else if (transportWorkTimeSeconds >= 0 && transportWorkTimeSeconds <= 300) {  // Добавлено
+    transportTimeExceeded = "Контроль руководителя";  // Добавлено
 } else {
     double percentageExceeded = ((double) transportNormSeconds / transportWorkTimeSeconds) * 100;
-    transportTimeExceeded = String.format("%.2f%%", percentageExceeded); // Форматируем в проценты
+    transportTimeExceeded = String.format("%.2f%%", percentageExceeded);
 }
 dto.setTransportTimeExceeded(transportTimeExceeded);
 
@@ -677,10 +696,10 @@ dto.setTotalTimeBetweenOperations(totalTime);
 
 
 // Получаем planPpp из DTO (предполагается, что planPpp - это double в минутах)
-double planPppMinutes = dto.getPlanPpp();
+int planPppMinutes = dto.getPlanPpp();
 
 // Преобразуем planPpp в секунды
-double planPppSeconds = planPppMinutes * 3600;
+int planPppSeconds = planPppMinutes * 3600;
 
 // Вычисляем totalOperationsWorkTime в секундах
 long totalOperationsWorkTimeSeconds = 0;
@@ -740,7 +759,8 @@ dto.setTotalTimeAll(formattedTotalTime);
 
 // ... (existing code) ...
 
-
+        int totalNormsAndProblems = (int)(dto.getTotalProfessionNorms() + analisHeaderService.getTotalHeaderNorms());
+                dto.setPlanPpp(totalNormsAndProblems);
         return dto;
     }
 

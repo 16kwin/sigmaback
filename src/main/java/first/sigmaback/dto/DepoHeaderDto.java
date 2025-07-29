@@ -21,4 +21,6 @@ public class DepoHeaderDto {
     private int transportExceededCount;
      private int totalHoursMounth; // Новое поле
     private int totalWorkTimeHoursFromEmployees; 
+    private int totalTimeAllHours;
+     private Double totalProblemHours;
 }

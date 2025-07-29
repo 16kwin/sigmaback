@@ -93,15 +93,23 @@ public class DepoService {
 
         int planPppDiff = 0;
         String planPppDiffPercentage = "Нет данных";
-
-        if (planPppSum != null && planPppSum != 0) {
-            planPppDiff = Math.abs(planPppSum - totalOperationsWorkTimeHours);
-            double percentage = ((double) totalOperationsWorkTimeHours / planPppSum) * 100;
-            planPppDiffPercentage = String.format("%.2f", percentage).replace('.', ',');
-        } else if (planPppSum == null) {
-            planPppDiffPercentage = "Нет данных";
-            planPppDiff = 0;
-        }
+if (planPppSum != null && planPppSum != 0) {
+    planPppDiff = Math.abs(planPppSum - totalOperationsWorkTimeHours);
+    
+    // 1. Расчёт процента выполнения (факт / план * 100)
+    double percentage = ((double) totalOperationsWorkTimeHours / planPppSum) * 100;
+    
+    // 2. Вычитаем 100% и обрабатываем результат
+    double deviationPercentage = percentage - 100;
+    double finalPercentage = Math.max(deviationPercentage, 0); // Если < 0 → 0
+    
+    // 3. Форматируем (замена точки на запятую)
+    planPppDiffPercentage = String.format("%.2f", finalPercentage).replace('.', ',');
+    
+} else if (planPppSum == null || planPppSum == 0) {
+    planPppDiffPercentage = "Нет данных";
+    planPppDiff = 0;
+}
 
         // 7.1. Считаем количество "нет" операций
         int noOperationsCount = 0;
@@ -140,7 +148,18 @@ public class DepoService {
             if (!"Нет данных".equals(depo.getVihodControlTimeExceeded())) vihodControlExceededCount++;
             if (!"Нет данных".equals(depo.getTransportTimeExceeded())) transportExceededCount++;
         }
-
+long totalTimeAllSeconds = transactionsInWork.stream()
+            .map(AnalisDTO::getTotalTimeAll)
+            .filter(Objects::nonNull)
+            .mapToLong(this::parseTimeToSeconds) // Используем существующий метод
+            .sum();
+// 7.5. Суммируем problemHours (если это Integer)
+double totalProblemHours = transactionsInWork.stream()
+        .map(AnalisDTO::getTotalProblemHours)
+        .filter(Objects::nonNull) 
+        .mapToDouble(Double::doubleValue)
+        .sum();
+    int totalTimeAllHours = (int) (totalTimeAllSeconds / 3600);
         // --- Новый функционал ---
 
         // Получаем данные за текущий месяц из кэша "employees_YYYY-MM"
@@ -166,7 +185,9 @@ public class DepoService {
                 vihodControlExceededCount,
                 transportExceededCount,
                 totalHoursMounth, // Новое значение
-                totalWorkTimeHoursFromEmployees // Новое значение
+                totalWorkTimeHoursFromEmployees,
+                totalTimeAllHours,
+                totalProblemHours
         );
 
         // 9. Получаем monthlyTransactionCounts через MonthService
@@ -180,49 +201,63 @@ public class DepoService {
 
         return depoFullDto;
     }
+    private int[] getMonthlyWorkSummary() {
+        logger.debug("Entering getMonthlyWorkSummary()");
+        long startTime = System.currentTimeMillis();
 
-private int[] getMonthlyWorkSummary() {
-    logger.debug("Entering getMonthlyWorkSummary()");
-    long startTime = System.currentTimeMillis();
+        YearMonth currentMonth = YearMonth.now();
+        String json = getMonthlyJson(currentMonth);
 
-    // Фиксированное имя JSON (вместо генерации)
-    String json = getFixedJson("Третий json"); 
+        // Десериализуем JSON в List<EmployeesDto>
+        List<EmployeesDto> employeesData = deserializeEmployeesJson(json);
 
-    List<EmployeesDto> employeesData = deserializeEmployeesJson(json);
-
-    if (employeesData == null || employeesData.isEmpty()) {
-        logger.warn("Employees data is null or empty for: Третий json");
-        return new int[]{0, 0};
-    }
-
-    // Остальная логика БЕЗ ИЗМЕНЕНИЙ
-    int totalHoursMounth = 0;
-    long totalWorkTimeSeconds = 0;
-
-    for (EmployeesDto employee : employeesData) {
-        if (employee.getTotalWorkTime() != null && !employee.getTotalWorkTime().equals("00:00:00")) {
-            if (employee.getHoursMounth() != null) {
-                totalHoursMounth += employee.getHoursMounth();
-            }
-            totalWorkTimeSeconds += parseTimeToSeconds(employee.getTotalWorkTime());
+        if (employeesData == null || employeesData.isEmpty()) {
+            logger.warn("Employees data is null or empty for cache: employees_{}", currentMonth);
+            return new int[]{0, 0}; // Возвращаем 0, 0 в случае ошибки или отсутствия данных
         }
+
+        int totalHoursMounth = 0;
+        long totalWorkTimeSeconds = 0;
+
+        for (EmployeesDto employee : employeesData) {
+            // Проверяем, что totalWorkTime не null и не равен "00:00:00"
+            if (employee.getTotalWorkTime() != null && !employee.getTotalWorkTime().equals("00:00:00")) {
+
+                // Суммируем hoursMounth (уже Integer)
+                if (employee.getHoursMounth() != null) {
+                    totalHoursMounth += employee.getHoursMounth();
+                }
+
+                // Извлекаем totalWorkTime (String "HH:mm:ss") и конвертируем в секунды
+                totalWorkTimeSeconds += parseTimeToSeconds(employee.getTotalWorkTime());
+            }
+        }
+
+        // Конвертируем totalWorkTimeSeconds в часы
+        int totalWorkTimeHours = (int) (totalWorkTimeSeconds / 3600);
+
+        long endTime = System.currentTimeMillis();
+        logger.debug("Exiting getMonthlyWorkSummary() after {} ms. TotalHoursMounth: {}, TotalWorkTimeHours: {}",
+                     (endTime - startTime), totalHoursMounth, totalWorkTimeHours);
+
+        return new int[]{totalHoursMounth, totalWorkTimeHours};
+    }
+ private String getMonthlyJson(YearMonth yearMonth) {
+        String cacheName = "employees_" + yearMonth.toString();
+        Optional<DataCache> dataCacheOptional = dataCacheRepository.findByJsonName(cacheName);
+        if (!dataCacheOptional.isPresent()) {
+            logger.warn("DataCache with name '{}' not found.", cacheName);
+            return null;
+        }
+        return dataCacheOptional.get().getJson();
     }
 
-    int totalWorkTimeHours = (int) (totalWorkTimeSeconds / 3600);
-
-    logger.debug("Exiting getMonthlyWorkSummary() after {} ms. TotalHoursMounth: {}, TotalWorkTimeHours: {}",
-               (System.currentTimeMillis() - startTime), totalHoursMounth, totalWorkTimeHours);
-
-    return new int[]{totalHoursMounth, totalWorkTimeHours};
-}
-
-// Новый метод для фиксированного JSON
-private String getFixedJson(String jsonName) {
-    Optional<DataCache> dataCacheOptional = dataCacheRepository.findByJsonName(jsonName);
-    return dataCacheOptional.map(DataCache::getJson).orElse(null);
-}
-  
-private List<EmployeesDto> deserializeEmployeesJson(String cachedJson) {
+    /**
+     * Вспомогательный метод для десериализации JSON в List<EmployeesDto>.
+     * @param cachedJson JSON строка.
+     * @return Список EmployeesDto или null в случае ошибки.
+     */
+    private List<EmployeesDto> deserializeEmployeesJson(String cachedJson) {
         if (cachedJson == null) {
             logger.warn("Cached JSON is null");
             return null;
@@ -235,7 +270,9 @@ private List<EmployeesDto> deserializeEmployeesJson(String cachedJson) {
         } catch (Exception e) {
             logger.error("Error while converting JSON to List<EmployeesDto>", e);
             return null;
-        }}
+        }
+    }
+    
     // --- Вспомогательные методы (оставшиеся без изменений) ---
 
     // Преобразуем AnalisDTO в DepoDto
@@ -251,21 +288,23 @@ private List<EmployeesDto> deserializeEmployeesJson(String cachedJson) {
         depoDto.setTransportTimeExceeded(processExceededTime(analisDTO.getTransportTimeExceeded()));
         return depoDto;
     }
-
-    private String processExceededTime(String exceededTime) {
-        if ("Нет данных".equals(exceededTime)) {
-            return "Нет данных";
-        }
-
-        try {
-            double percentage = Double.parseDouble(exceededTime.replace("%", "").replace(",", "."));
-            if (percentage >= 100.0) return "да";
-            else return "нет";
-        } catch (NumberFormatException e) {
-            logger.error("Ошибка при преобразовании строки в число: {}", exceededTime, e);
-            return "Ошибка";
-        }
+private String processExceededTime(String exceededTime) {
+    if ("Нет данных".equals(exceededTime)) {
+        return "Нет данных";
     }
+    if ("Контроль руководителя".equals(exceededTime)) {
+        return "да";  // Добавлено: считаем как "да" для контроля руководителя
+    }
+
+    try {
+        double percentage = Double.parseDouble(exceededTime.replace("%", "").replace(",", "."));
+        if (percentage >= 100.0) return "да";
+        else return "нет";
+    } catch (NumberFormatException e) {
+        logger.error("Ошибка при преобразовании строки в число: {}", exceededTime, e);
+        return "Ошибка";
+    }
+}
 
     // Метод для создания DepoHeaderDto (сигнатура уже обновлена)
     private DepoHeaderDto createDepoHeaderDto(
@@ -285,7 +324,9 @@ private List<EmployeesDto> deserializeEmployeesJson(String cachedJson) {
             int vihodControlExceededCount,
             int transportExceededCount,
             int totalHoursMounth,
-            int totalWorkTimeHoursFromEmployees
+            int totalWorkTimeHoursFromEmployees,
+            int totalTimeAllHours,
+            double totalProblemHours
     ) {
         DepoHeaderDto header = new DepoHeaderDto();
         header.setTotalTransactionsInWork(totalTransactionsInWork);
@@ -305,6 +346,8 @@ private List<EmployeesDto> deserializeEmployeesJson(String cachedJson) {
         header.setTransportExceededCount(transportExceededCount);
         header.setTotalHoursMounth(totalHoursMounth);
         header.setTotalWorkTimeHoursFromEmployees(totalWorkTimeHoursFromEmployees);
+         header.setTotalTimeAllHours(totalTimeAllHours);
+        header.setTotalProblemHours(totalProblemHours);
         return header;
     }
 

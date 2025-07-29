@@ -57,7 +57,33 @@ public class AnalisHeaderService {
 
         // Устанавливаем количество транзакций со статусом "В работе"
         dto.setInProgressTransactionsCount(inProgressTransactionsCount);
-
+double total = 0.0;
+    
+    // Безопасное сложение всех нормативов
+    total += parseNorm(dto.getVhodNorm());
+    total += parseNorm(dto.getPodklyuchenieNorm());
+    total += parseNorm(dto.getMechOperationNorm());
+    total += parseNorm(dto.getElectronOperationNorm());
+    total += parseNorm(dto.getTechOperationNorm());
+    total += parseNorm(dto.getVihodNorm());
+    total += parseNorm(dto.getTransportNorm());
+    
+    dto.setTotalHeaderNorms(total);
         return dto;
     }
+
+private double parseNorm(String normValue) {
+    if (normValue == null || normValue.trim().isEmpty()) {
+        return 0.0;
+    }
+    try {
+        return Double.parseDouble(normValue);
+    } catch (NumberFormatException e) {
+        return 0.0;
+    }
+}
+public double getTotalHeaderNorms() {
+    AnalisHeaderDTO dto = this.getNorms(); // получаем DTO с уже рассчитанными нормами
+    return dto.getTotalHeaderNorms(); // возвращаем рассчитанную сумму
+}
 }

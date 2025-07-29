@@ -114,4 +114,5 @@ private String totalTimeBetweenOperations;
 
 private String percentagePlanPpp;
 private String totalTimeAll;
+private double totalProfessionNorms;
 }

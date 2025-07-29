@@ -10,7 +10,9 @@ public class AnalisHeaderDTO {
     private String electronOperationNorm;
     private String techOperationNorm;
     private String vihodNorm;
+    
     private String transportNorm;
+     private double totalHeaderNorms;
     private Integer mechanicCount;
     private Integer eletronCount;
     private Integer techCount;
@@ -21,4 +23,6 @@ public class AnalisHeaderDTO {
     private long inProgressTransactionsCount;
     private long overfulfilledTransactionsCount;
     private long underfulfilledTransactionsCount;
+   
+
 }
