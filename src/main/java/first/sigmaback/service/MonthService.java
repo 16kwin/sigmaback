@@ -68,24 +68,37 @@ public class MonthService {
         List<MonthlyTransactionCountDto> monthlyTransactionCounts = new ArrayList<>();
 
         for (YearMonth month : allMonths) {
-            MonthlyTransactionCountDto dto = new MonthlyTransactionCountDto();
-            dto.setMonth(month);
-            long count = 0;
-            for (AnalisDTO transaction : allTransactions) {
-                if ("Закрыта".equals(transaction.getStatus()) && transaction.getFactDateStop() != null) {
-                    try {
-                        YearMonth factMonth = YearMonth.from((LocalDate) transaction.getFactDateStop());  // Преобразуем LocalDate в YearMonth
-                        if (factMonth.equals(month)) {
-                            count++;
+    MonthlyTransactionCountDto dto = new MonthlyTransactionCountDto();
+    dto.setMonth(month);
+    long onTimeCount = 0;
+    long delayedCount = 0;
+
+    for (AnalisDTO transaction : allTransactions) {
+        if ("Закрыта".equals(transaction.getStatus()) && transaction.getFactDateStop() != null) {
+            try {
+                YearMonth factMonth = YearMonth.from((LocalDate) transaction.getFactDateStop());
+                if (factMonth.equals(month)) {
+                    // Проверяем percentagePlanPpp
+                    String percentageStr = transaction.getPercentagePlanPpp();
+                    if (percentageStr != null) {
+                        double percentage = Double.parseDouble(percentageStr.replace("%", "").replace(",", "."));
+                        if (percentage >= 100.0) {
+                            onTimeCount++;
+                        } else {
+                            delayedCount++;
                         }
-                    } catch (Exception e) {
-                        logger.error("Error while processing factDateStop: {}", transaction.getFactDateStop(), e); // Изменили сообщение об ошибке
                     }
                 }
+            } catch (Exception e) {
+                logger.error("Error processing transaction: {}", transaction.getTransaction(), e);
             }
-            dto.setTransactionCount(count);
-            monthlyTransactionCounts.add(dto);
         }
+    }
+    dto.setOnTimeCount(onTimeCount);
+    dto.setDelayedCount(delayedCount);
+    dto.setTransactionCount(onTimeCount + delayedCount); // Общее количество
+    monthlyTransactionCounts.add(dto);
+}
 
         long endTime = System.currentTimeMillis();
         logger.debug("Exiting getMonthlyTransactionCounts() after {} ms", (endTime - startTime));

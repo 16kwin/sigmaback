@@ -148,18 +148,13 @@ if (planPppSum != null && planPppSum != 0) {
             if (!"Нет данных".equals(depo.getVihodControlTimeExceeded())) vihodControlExceededCount++;
             if (!"Нет данных".equals(depo.getTransportTimeExceeded())) transportExceededCount++;
         }
-long totalTimeAllSeconds = transactionsInWork.stream()
-            .map(AnalisDTO::getTotalTimeAll)
-            .filter(Objects::nonNull)
-            .mapToLong(this::parseTimeToSeconds) // Используем существующий метод
-            .sum();
 // 7.5. Суммируем problemHours (если это Integer)
 double totalProblemHours = transactionsInWork.stream()
         .map(AnalisDTO::getTotalProblemHours)
         .filter(Objects::nonNull) 
         .mapToDouble(Double::doubleValue)
         .sum();
-    int totalTimeAllHours = (int) (totalTimeAllSeconds / 3600);
+    int totalTimeAllHours = (int) (totalOperationsWorkTimeHours+totalProblemHours+totalTimeBetweenOperationsHours);
         // --- Новый функционал ---
 
         // Получаем данные за текущий месяц из кэша "employees_YYYY-MM"
