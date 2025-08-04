@@ -229,20 +229,7 @@ private int checkTimeExceeded(String timeExceededValue) {
     }
 }
 
-// Проверка даты операции (обновлённая версия)
-private boolean isValidStopTime(String stopTime, YearMonth yearMonth) {
-    if (stopTime == null || stopTime.isEmpty()) {
-        return false;
-    }
-    try {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        LocalDateTime operationTime = LocalDateTime.parse(stopTime, formatter);
-        return YearMonth.from(operationTime).equals(yearMonth);
-    } catch (DateTimeParseException e) {
-        logger.error("Ошибка парсинга даты операции: " + stopTime, e);
-        return false;
-    }
-}
+
 
     private int isTimeExceeded(String timeExceeded) {
         if (timeExceeded != null && !"Нет данных".equalsIgnoreCase(timeExceeded)) {
