@@ -294,7 +294,7 @@ double electricProblemHours = dto.getElectricProblemHours();
 long electricProblemHoursSeconds = (long) (electricProblemHours * 3600);
 
 // Вычитаем время проблем из общего времени
-long cleanElectricTimeSeconds = (electricTotalWorkTimeSeconds == -1 || electricProblemHoursSeconds == -1) ? -1 : electricTotalWorkTimeSeconds - electricProblemHoursSeconds;
+long cleanElectricTimeSeconds = (electricTotalWorkTimeSeconds == -1 || electricProblemHoursSeconds == -1) ? -1 : electricTotalWorkTimeSeconds;
 
 // Суммируем нормативы
 double totalElectricNorm = podklyuchenieNorm + electricNormFull;
@@ -342,7 +342,7 @@ double mechProblemHours = dto.getMechanicProblemHours();
 long mechProblemHoursSeconds = (long) (mechProblemHours * 3600);
 
 // Вычитаем время проблем из общего времени
-long cleanmechTimeSeconds = (mechTotalWorkTimeSeconds == -1 || mechProblemHoursSeconds == -1) ? -1 : mechTotalWorkTimeSeconds - mechProblemHoursSeconds;
+long cleanmechTimeSeconds = (mechTotalWorkTimeSeconds == -1 || mechProblemHoursSeconds == -1) ? -1 : mechTotalWorkTimeSeconds;
 
 // Суммируем нормативы
 double totalmechNorm = mechOperationNorm + mechNormFull;
@@ -393,7 +393,7 @@ double electronProblemHours = dto.getElectronProblemHours();
 long electronProblemHoursSeconds = (long) (electronProblemHours * 3600);
 
 // Вычитаем время проблем из общего времени
-long cleanElectronTimeSeconds = (electronTotalWorkTimeSeconds == -1 || electronProblemHoursSeconds == -1) ? -1 : electronTotalWorkTimeSeconds - electronProblemHoursSeconds;
+long cleanElectronTimeSeconds = (electronTotalWorkTimeSeconds == -1 || electronProblemHoursSeconds == -1) ? -1 : electronTotalWorkTimeSeconds;
 
 // Суммируем нормативы
 double totalElectronNorm = electronOperationNorm + electronNormFull;
@@ -442,7 +442,7 @@ double techProblemHours = dto.getTechProblemHours();
 long techProblemHoursSeconds = (long) (techProblemHours * 3600);
 
 // Вычитаем время проблем из общего времени
-long cleantechTimeSeconds = (techTotalWorkTimeSeconds == -1 || techProblemHoursSeconds == -1) ? -1 : techTotalWorkTimeSeconds - techProblemHoursSeconds;
+long cleantechTimeSeconds = (techTotalWorkTimeSeconds == -1 || techProblemHoursSeconds == -1) ? -1 : techTotalWorkTimeSeconds;
 
 // Суммируем нормативы
 double totaltechNorm = techOperationNorm + techNormFull;
