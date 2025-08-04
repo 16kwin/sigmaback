@@ -247,155 +247,118 @@ private int checkTimeExceeded(String timeExceededValue) {
         return 0;
     }
 
-   private int[] getTotalNormTimeForEmployee(String employeeName, YearMonth yearMonth) {
-    logger.debug("Entering getTotalNormTimeForEmployeeOptimized() for employee: {} and yearMonth: {}", 
-        employeeName, yearMonth);
-    long startTime = System.currentTimeMillis();
-    int totalNormTime = 0;
-    long totalWorkTime = 0;
+  public int[] getTotalNormTimeForEmployee(String employeeName, YearMonth yearMonth) {
+    logger.info("Расчёт нормативов для {} за {}", employeeName, yearMonth);
+    int totalNormTime = 0; // Сумма нормативов в часах
+    long totalWorkTime = 0; // Сумма фактического времени в секундах
 
-    // 1. Получаем DataCache из репозитория
+    // 1. Получаем и парсим данные
     Optional<DataCache> dataCacheOptional = dataCacheRepository.findByJsonName("Первый json");
-    if (!dataCacheOptional.isPresent()) {
-        logger.warn("DataCache with name 'Первый json' not found for employee: {}", employeeName);
+    if (!dataCacheOptional.isPresent() || dataCacheOptional.get().getJson() == null) {
+        logger.warn("Данные не найдены в кэше");
         return new int[]{0, 0};
     }
 
-    DataCache dataCache = dataCacheOptional.get();
-    String cachedJson = dataCache.getJson();
-
-    if (cachedJson == null) {
-        logger.warn("Cached JSON is null for employee: {}", employeeName);
-        return new int[]{0, 0};
-    }
-
-    // 2. Конвертируем JSON в AnalisFullDTO
     AnalisFullDTO analisFullData;
     try {
-        analisFullData = objectMapper.readValue(cachedJson, AnalisFullDTO.class);
+        analisFullData = objectMapper.readValue(dataCacheOptional.get().getJson(), AnalisFullDTO.class);
     } catch (Exception e) {
-        logger.error("Error while converting JSON to AnalisFullDTO for employee: {}", employeeName, e);
+        logger.error("Ошибка парсинга JSON", e);
         return new int[]{0, 0};
     }
 
-    if (analisFullData == null || analisFullData.getTransactions() == null) {
-        logger.warn("AnalisService returned null data for employee: {}", employeeName);
-        return new int[]{0, 0};
-    }
+    // 2. Получаем нормативы
+    AnalisHeaderDTO header = objectMapper.convertValue(analisFullData.getHeader(), AnalisHeaderDTO.class);
 
-    // 3. Фильтруем транзакции
-    List<AnalisDTO> filteredTransactions = analisFullData.getTransactions().stream()
-            .filter(transaction -> {
-                LocalDate factDateStop = transaction.getFactDateStop();
-                return factDateStop != null && 
-                       YearMonth.from(factDateStop).equals(yearMonth);
-            })
-            .collect(Collectors.toList());
+    // 3. Обрабатываем все операции
+    for (AnalisDTO transaction : analisFullData.getTransactions()) {
+        String transactionId = transaction.getTransaction();
 
-    logger.debug("For employee: {} found {} transactions in month: {}", 
-        employeeName, filteredTransactions.size(), yearMonth);
-
-    // 4. Получаем заголовок (нормативы)
-    AnalisHeaderDTO header;
-    try {
-        header = objectMapper.convertValue(analisFullData.getHeader(), AnalisHeaderDTO.class);
-    } catch (Exception e) {
-        logger.error("Error while converting header to AnalisHeaderDTO for employee: {}", employeeName, e);
-        return new int[]{0, 0};
-    }
-
-    // 5. Считаем время только для отфильтрованных транзакций
-    for (AnalisDTO transaction : filteredTransactions) {
-        String transactionId = transaction.getTransaction(); // предполагаем, что у транзакции есть ID
-        logger.debug("Processing transaction {} for employee: {}", transactionId, employeeName);
-
-        // Vhod Control
-        if (employeeName.equals(transaction.getVhodControlEmployee())) {
+        // Входной контроль
+        if (employeeName.equals(transaction.getVhodControlEmployee()) && 
+            isValidStopTime(transaction.getVhodControlStopTime(), yearMonth)) {
             int norm = parseNormTime(header.getVhodNorm());
             long work = parseWorkTime(transaction.getVhodControlWorkTime());
             totalNormTime += norm;
             totalWorkTime += work;
-            logger.info("Employee {}: Vhod Control - added norm: {} sec ({}), work: {} sec ({}), transaction{}", 
-                employeeName, norm, formatSecondsToTime(norm), 
-                work, formatSecondsToTime((int)work),transactionId);
+            logger.debug("{}: Входной контроль +{}ч (норматив), +{}сек (факт)", 
+                transactionId, norm, work);
         }
-        
-        // Podkluchenie
-        if (employeeName.equals(transaction.getPodkluchenieEmployee())) {
+
+        // Подключение
+        if (employeeName.equals(transaction.getPodkluchenieEmployee()) && 
+            isValidStopTime(transaction.getPodkluchenieStopTime(), yearMonth)) {
             int norm = parseNormTime(header.getPodklyuchenieNorm());
             long work = parseWorkTime(transaction.getPodkluchenieWorkTime());
             totalNormTime += norm;
             totalWorkTime += work;
-            logger.info("Employee {}: Podkluchenie - added norm: {} sec ({}), work: {} sec ({})", 
-                employeeName, norm, formatSecondsToTime(norm), 
-                work, formatSecondsToTime((int)work));
+            logger.debug("{}: Подключение +{}ч (норматив), +{}сек (факт)", 
+                transactionId, norm, work);
         }
-        
-        // Proverka Mehanikom
-        if (employeeName.equals(transaction.getProverkaMehanikomEmployee())) {
+
+        // Проверка механиком
+        if (employeeName.equals(transaction.getProverkaMehanikomEmployee()) && 
+            isValidStopTime(transaction.getProverkaMehanikomStopTime(), yearMonth)) {
             int norm = parseNormTime(header.getMechOperationNorm());
             long work = parseWorkTime(transaction.getProverkaMehanikomWorkTime());
             totalNormTime += norm;
             totalWorkTime += work;
-            logger.info("Employee {}: Proverka Mehanikom - added norm: {} sec ({}), work: {} sec ({})", 
-                employeeName, norm, formatSecondsToTime(norm), 
-                work, formatSecondsToTime((int)work));
+            logger.debug("{}: Проверка механиком +{}ч (норматив), +{}сек (факт)", 
+                transactionId, norm, work);
         }
-        
-        // Proverka Electron
-        if (employeeName.equals(transaction.getProverkaElectronEmployee())) {
+
+        // Проверка электронщиком
+        if (employeeName.equals(transaction.getProverkaElectronEmployee()) && 
+            isValidStopTime(transaction.getProverkaElectronStopTime(), yearMonth)) {
             int norm = parseNormTime(header.getElectronOperationNorm());
             long work = parseWorkTime(transaction.getProverkaElectronWorkTime());
             totalNormTime += norm;
             totalWorkTime += work;
-            logger.info("Employee {}: Proverka Electron - added norm: {} sec ({}), work: {} sec ({})", 
-                employeeName, norm, formatSecondsToTime(norm), 
-                work, formatSecondsToTime((int)work));
+            logger.debug("{}: Проверка электронщиком +{}ч (норматив), +{}сек (факт)", 
+                transactionId, norm, work);
         }
-        
-        // Proverka Tehnologom
-        if (employeeName.equals(transaction.getProverkaTehnologomEmployee())) {
+
+        // Проверка технологом
+        if (employeeName.equals(transaction.getProverkaTehnologomEmployee()) && 
+            isValidStopTime(transaction.getProverkaTehnologomStopTime(), yearMonth)) {
             int norm = parseNormTime(header.getTechOperationNorm());
             long work = parseWorkTime(transaction.getProverkaTehnologomWorkTime());
             totalNormTime += norm;
             totalWorkTime += work;
-            logger.info("Employee {}: Proverka Tehnologom - added norm: {} sec ({}), work: {} sec ({})", 
-                employeeName, norm, formatSecondsToTime(norm), 
-                work, formatSecondsToTime((int)work));
+            logger.debug("{}: Проверка технологом +{}ч (норматив), +{}сек (факт)", 
+                transactionId, norm, work);
         }
-        
-        // Vihod Control
-        if (employeeName.equals(transaction.getVihodControlEmployee())) {
-            int norm = parseNormTime(header.getVihodNorm());
-            long work = parseWorkTime(transaction.getVihodControlWorkTime());
-            totalNormTime += norm;
-            totalWorkTime += work;
-            logger.info("Employee {}: Vihod Control - added norm: {} sec ({}), work: {} sec ({}), transaction {}", 
-                employeeName, norm, formatSecondsToTime(norm), 
-                work, formatSecondsToTime((int)work), transactionId);
-        }
-        
-        // Transport Polozhenie
-        if (employeeName.equals(transaction.getTransportPolozhenieEmployee())) {
+
+        // Транспортное положение
+        if (employeeName.equals(transaction.getTransportPolozhenieEmployee()) && 
+            isValidStopTime(transaction.getTransportPolozhenieStopTime(), yearMonth)) {
             int norm = parseNormTime(header.getTransportNorm());
             long work = parseWorkTime(transaction.getTransportPolozhenieWorkTime());
             totalNormTime += norm;
             totalWorkTime += work;
-            logger.info("Employee {}: Transport Polozhenie - added norm: {} sec ({}), work: {} sec ({})", 
-                employeeName, norm, formatSecondsToTime(norm), 
-                work, formatSecondsToTime((int)work));
+            logger.debug("{}: Транспортное положение +{}ч (норматив), +{}сек (факт)", 
+                transactionId, norm, work);
+        }
+
+        // Выходной контроль
+        if (employeeName.equals(transaction.getVihodControlEmployee()) && 
+            isValidStopTime(transaction.getVihodControlStopTime(), yearMonth)) {
+            int norm = parseNormTime(header.getVihodNorm());
+            long work = parseWorkTime(transaction.getVihodControlWorkTime());
+            totalNormTime += norm;
+            totalWorkTime += work;
+            logger.debug("{}: Выходной контроль +{}ч (норматив), +{}сек (факт)", 
+                transactionId, norm, work);
         }
     }
 
-    long endTime = System.currentTimeMillis();
-    logger.info("Employee {}: Calculated total norm: {} sec ({}), work: {} sec ({}), processing time: {} ms",
-        employeeName, 
-        totalNormTime, formatSecondsToTime(totalNormTime),
-        totalWorkTime, formatSecondsToTime((int)totalWorkTime),
-        (endTime - startTime));
-    
+    logger.info("Итог для {}: норматив={}ч, факт={}сек", 
+        employeeName, totalNormTime, totalWorkTime);
     return new int[]{totalNormTime, (int) totalWorkTime};
 }
+
+
+
     private long parseWorkTime(String workTime) {
         if (workTime == null || "Нет данных".equalsIgnoreCase(workTime) || 
         "Контроль руководителя".equalsIgnoreCase(workTime)){
