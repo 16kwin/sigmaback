@@ -135,135 +135,113 @@ public class EmployeesTableService {
     }
 
 public int[] getTransactionDataForEmployee(String employeeName, YearMonth yearMonth) {
-    logger.debug("Entering getTransactionCountForEmployee() with employeeName: {} and yearMonth: {}", employeeName, yearMonth);
-    long startTime = System.currentTimeMillis();
+    logger.debug("Получение данных по операциям для сотрудника: {}, месяц: {}", employeeName, yearMonth);
     int transactionCount = 0;
     int exceededTimeCount = 0;
 
-    // 1. Get DataCache from DataCacheRepository
+    // 1. Получаем закешированные данные
     Optional<DataCache> dataCacheOptional = dataCacheRepository.findByJsonName("Первый json");
     if (!dataCacheOptional.isPresent()) {
-        logger.warn("DataCache with name 'Первый json' not found");
+        logger.warn("Данные не найдены в кэше");
         return new int[]{0, 0};
     }
 
-    DataCache dataCache = dataCacheOptional.get();
-    String cachedJson = dataCache.getJson();
-
-    if (cachedJson == null) {
-        logger.warn("Cached JSON is null");
-        return new int[]{0, 0};
-    }
-
-    // 2. Convert JSON to AnalisFullDTO
+    // 2. Парсим JSON
     AnalisFullDTO analisFullData;
     try {
-        analisFullData = objectMapper.readValue(cachedJson, AnalisFullDTO.class);
+        analisFullData = objectMapper.readValue(dataCacheOptional.get().getJson(), AnalisFullDTO.class);
     } catch (Exception e) {
-        logger.error("Error while converting JSON to AnalisFullDTO", e);
+        logger.error("Ошибка парсинга JSON", e);
         return new int[]{0, 0};
     }
 
-    if (analisFullData == null || analisFullData.getTransactions() == null) {
-        logger.warn("AnalisService returned null data");
-        return new int[]{0, 0};
+    // 3. Проверяем все транзакции (без фильтрации по factDateStop)
+    for (AnalisDTO transaction : analisFullData.getTransactions()) {
+        // Входной контроль
+        if (employeeName.equals(transaction.getVhodControlEmployee()) && 
+            isValidStopTime(transaction.getVhodControlStopTime(), yearMonth)) {
+            transactionCount++;
+            exceededTimeCount += checkTimeExceeded(transaction.getVhodControlTimeExceeded());
+        }
+        
+        // Подключение
+        if (employeeName.equals(transaction.getPodkluchenieEmployee()) && 
+            isValidStopTime(transaction.getPodkluchenieStopTime(), yearMonth)) {
+            transactionCount++;
+            exceededTimeCount += checkTimeExceeded(transaction.getElectricTimeExceeded());
+        }
+        
+        // Проверка механиком
+        if (employeeName.equals(transaction.getProverkaMehanikomEmployee()) && 
+            isValidStopTime(transaction.getProverkaMehanikomStopTime(), yearMonth)) {
+            transactionCount++;
+            exceededTimeCount += checkTimeExceeded(transaction.getMechanicTimeExceeded());
+        }
+        
+        // Проверка электронщиком
+        if (employeeName.equals(transaction.getProverkaElectronEmployee()) && 
+            isValidStopTime(transaction.getProverkaElectronStopTime(), yearMonth)) {
+            transactionCount++;
+            exceededTimeCount += checkTimeExceeded(transaction.getElectronTimeExceeded());
+        }
+        
+        // Проверка технологом
+        if (employeeName.equals(transaction.getProverkaTehnologomEmployee()) && 
+            isValidStopTime(transaction.getProverkaTehnologomStopTime(), yearMonth)) {
+            transactionCount++;
+            exceededTimeCount += checkTimeExceeded(transaction.getTechTimeExceeded());
+        }
+        
+        // Транспортное положение
+        if (employeeName.equals(transaction.getTransportPolozhenieEmployee()) && 
+            isValidStopTime(transaction.getTransportPolozhenieStopTime(), yearMonth)) {
+            transactionCount++;
+            exceededTimeCount += checkTimeExceeded(transaction.getTransportTimeExceeded());
+        }
+        
+        // Выходной контроль
+        if (employeeName.equals(transaction.getVihodControlEmployee()) && 
+            isValidStopTime(transaction.getVihodControlStopTime(), yearMonth)) {
+            transactionCount++;
+            exceededTimeCount += checkTimeExceeded(transaction.getVihodControlTimeExceeded());
+        }
     }
 
-    // 3. First filtering - by factDateStop
-    List<AnalisDTO> filteredTransactions = analisFullData.getTransactions().stream()
-            .filter(transaction -> {
-                LocalDate factDateStop = transaction.getFactDateStop();
-                return factDateStop != null && 
-                       YearMonth.from(factDateStop).equals(yearMonth);
-            })
-            .collect(Collectors.toList());
+    logger.info("Итог по сотруднику {}: операций - {}, с превышением - {}", 
+        employeeName, transactionCount, exceededTimeCount);
+    return new int[]{transactionCount, exceededTimeCount};
+}
 
-    logger.debug("After factDateStop filtering, {} transactions remain", filteredTransactions.size());
-
-    // 4. Second filtering - check stopTime for each operation
-   for (AnalisDTO transaction : filteredTransactions) {
-    // Vhod Control
-    if (employeeName.equals(transaction.getVhodControlEmployee()) && 
-        isValidStopTime(transaction.getVhodControlStopTime(), yearMonth)) {
-        transactionCount++;
-        String timeExceeded = transaction.getVhodControlTimeExceeded();
-        if (!"Нет данных".equalsIgnoreCase(timeExceeded) && 
-            !"Контроль руководителя".equalsIgnoreCase(timeExceeded)) {
-            exceededTimeCount += isTimeExceeded(timeExceeded);
-        }
+// Проверка превышения времени (вынесено в отдельный метод для удобства)
+private int checkTimeExceeded(String timeExceededValue) {
+    if (timeExceededValue == null || 
+        "Нет данных".equalsIgnoreCase(timeExceededValue) || 
+        "Контроль руководителя".equalsIgnoreCase(timeExceededValue)) {
+        return 0;
     }
-    
-    // Podkluchenie
-    if (employeeName.equals(transaction.getPodkluchenieEmployee()) && 
-        isValidStopTime(transaction.getPodkluchenieStopTime(), yearMonth)) {
-        transactionCount++;
-        String timeExceeded = transaction.getElectricTimeExceeded();
-        if (!"Нет данных".equalsIgnoreCase(timeExceeded) && 
-            !"Контроль руководителя".equalsIgnoreCase(timeExceeded)) {
-            exceededTimeCount += isTimeExceeded(timeExceeded);
-        }
-    }
-    
-    // Proverka Mehanikom
-    if (employeeName.equals(transaction.getProverkaMehanikomEmployee()) && 
-        isValidStopTime(transaction.getProverkaMehanikomStopTime(), yearMonth)) {
-        transactionCount++;
-        String timeExceeded = transaction.getMechanicTimeExceeded();
-        if (!"Нет данных".equalsIgnoreCase(timeExceeded) && 
-            !"Контроль руководителя".equalsIgnoreCase(timeExceeded)) {
-            exceededTimeCount += isTimeExceeded(timeExceeded);
-        }
-    }
-    
-    // Proverka Electron
-    if (employeeName.equals(transaction.getProverkaElectronEmployee()) && 
-        isValidStopTime(transaction.getProverkaElectronStopTime(), yearMonth)) {
-        transactionCount++;
-        String timeExceeded = transaction.getElectronTimeExceeded();
-        if (!"Нет данных".equalsIgnoreCase(timeExceeded) && 
-            !"Контроль руководителя".equalsIgnoreCase(timeExceeded)) {
-            exceededTimeCount += isTimeExceeded(timeExceeded);
-        }
-    }
-    
-    // Proverka Tehnologom
-    if (employeeName.equals(transaction.getProverkaTehnologomEmployee()) && 
-        isValidStopTime(transaction.getProverkaTehnologomStopTime(), yearMonth)) {
-        transactionCount++;
-        String timeExceeded = transaction.getTechTimeExceeded();
-        if (!"Нет данных".equalsIgnoreCase(timeExceeded) && 
-            !"Контроль руководителя".equalsIgnoreCase(timeExceeded)) {
-            exceededTimeCount += isTimeExceeded(timeExceeded);
-        }
-    }
-    
-    // Transport Polozhenie
-    if (employeeName.equals(transaction.getTransportPolozhenieEmployee()) && 
-        isValidStopTime(transaction.getTransportPolozhenieStopTime(), yearMonth)) {
-        transactionCount++;
-        String timeExceeded = transaction.getTransportTimeExceeded();
-        if (!"Нет данных".equalsIgnoreCase(timeExceeded) && 
-            !"Контроль руководителя".equalsIgnoreCase(timeExceeded)) {
-            exceededTimeCount += isTimeExceeded(timeExceeded);
-        }
-    }
-    
-    // Vihod Control
-    if (employeeName.equals(transaction.getVihodControlEmployee()) && 
-        isValidStopTime(transaction.getVihodControlStopTime(), yearMonth)) {
-        transactionCount++;
-        String timeExceeded = transaction.getVihodControlTimeExceeded();
-        if (!"Нет данных".equalsIgnoreCase(timeExceeded) && 
-            !"Контроль руководителя".equalsIgnoreCase(timeExceeded)) {
-            exceededTimeCount += isTimeExceeded(timeExceeded);
-        }
+    try {
+        String cleanedValue = timeExceededValue.replace("%", "").replace(",", ".");
+        double value = Double.parseDouble(cleanedValue);
+        return value >= 100 ? 1 : 0;
+    } catch (NumberFormatException e) {
+        logger.error("Некорректное значение превышения времени: " + timeExceededValue, e);
+        return 0;
     }
 }
 
-    long endTime = System.currentTimeMillis();
-    logger.debug("Exiting getTransactionCountForEmployee(). Total transactions: {}, exceeded: {}, time: {} ms",
-            transactionCount, exceededTimeCount, (endTime - startTime));
-    return new int[]{transactionCount, exceededTimeCount};
+// Проверка даты операции (обновлённая версия)
+private boolean isValidStopTime(String stopTime, YearMonth yearMonth) {
+    if (stopTime == null || stopTime.isEmpty()) {
+        return false;
+    }
+    try {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        LocalDateTime operationTime = LocalDateTime.parse(stopTime, formatter);
+        return YearMonth.from(operationTime).equals(yearMonth);
+    } catch (DateTimeParseException e) {
+        logger.error("Ошибка парсинга даты операции: " + stopTime, e);
+        return false;
+    }
 }
 
     private int isTimeExceeded(String timeExceeded) {
