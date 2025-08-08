@@ -154,7 +154,7 @@ double totalProblemHours = transactionsInWork.stream()
         .filter(Objects::nonNull) 
         .mapToDouble(Double::doubleValue)
         .sum();
-    int totalTimeAllHours = (int) (totalOperationsWorkTimeHours+totalProblemHours+totalTimeBetweenOperationsHours);
+    int totalTimeAllHours = (int) (totalOperationsWorkTimeHours+totalTimeBetweenOperationsHours);
         // --- Новый функционал ---
 
         // Получаем данные за текущий месяц из кэша "employees_YYYY-MM"
