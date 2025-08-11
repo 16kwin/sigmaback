@@ -257,7 +257,7 @@ if (vhodControlWorkTimeSeconds == -1) {
 } else if (vhodControlWorkTimeSeconds == 0) {
     vhodControlTimeExceeded = "100.00%";
 } else {
-    double percentageExceeded = ((double) vhodNormSeconds / vhodControlWorkTimeSeconds) * 100;
+    double percentageExceeded = (  vhodControlWorkTimeSeconds/(double) vhodNormSeconds) * 100;
     vhodControlTimeExceeded = String.format("%.2f%%", percentageExceeded);
 }
 dto.setVhodControlTimeExceeded(vhodControlTimeExceeded);
@@ -308,7 +308,7 @@ if (cleanElectricTimeSeconds == -1) {
 } else if (cleanElectricTimeSeconds == 0) {
     electricTimeExceeded = "100.00%";
 } else {
-    double percentageExceeded = ((double) totalElectricNormSeconds / cleanElectricTimeSeconds) * 100;
+    double percentageExceeded = (  cleanElectricTimeSeconds/(double) totalElectricNormSeconds) * 100;
     electricTimeExceeded = String.format("%.2f%%", percentageExceeded);
 }
 dto.setElectricTimeExceeded(electricTimeExceeded);
@@ -356,7 +356,7 @@ if (cleanmechTimeSeconds == -1) {
 } else if (cleanmechTimeSeconds == 0) {
     mechTimeExceeded = "100.00%";
 } else {
-    double percentageExceeded = ((double) totalmechNormSeconds / cleanmechTimeSeconds) * 100;
+    double percentageExceeded = ( cleanmechTimeSeconds/(double) totalmechNormSeconds) * 100;
     mechTimeExceeded = String.format("%.2f%%", percentageExceeded);
 }
 dto.setMechanicTimeExceeded(mechTimeExceeded);
@@ -406,7 +406,7 @@ if (cleanElectronTimeSeconds == -1) {
 } else if (cleanElectronTimeSeconds == 0) {
     electronTimeExceeded = "100.00%";
 } else {
-    double percentageExceeded = ((double) totalElectronNormSeconds / cleanElectronTimeSeconds) * 100;
+    double percentageExceeded = ( cleanElectronTimeSeconds/(double) totalElectronNormSeconds) * 100;
     electronTimeExceeded = String.format("%.2f%%", percentageExceeded);
 }
 dto.setElectronTimeExceeded(electronTimeExceeded);
@@ -456,7 +456,7 @@ if (cleantechTimeSeconds == -1) {
 } else if (cleantechTimeSeconds == 0) {
     techTimeExceeded = "100.00%";
 } else {
-    double percentageExceeded = ((double) totaltechNormSeconds / cleantechTimeSeconds) * 100;
+    double percentageExceeded = ( cleantechTimeSeconds/(double) totaltechNormSeconds) * 100;
     techTimeExceeded = String.format("%.2f%%", percentageExceeded);
 }
 dto.setTechTimeExceeded(techTimeExceeded);
@@ -485,7 +485,7 @@ if (vihodControlWorkTimeSeconds == -1 || vihodControlWorkTimeSeconds == 0) {
 } else if (vihodControlWorkTimeSeconds >= 0 && vihodControlWorkTimeSeconds <= 300) {  // Добавлено
     vihodControlTimeExceeded = "Контроль руководителя";  // Добавлено
 } else {
-    double percentageExceeded = ((double) vihodNormSeconds / vihodControlWorkTimeSeconds) * 100;
+    double percentageExceeded = ( vihodControlWorkTimeSeconds/(double) vihodNormSeconds) * 100;
     vihodControlTimeExceeded = String.format("%.2f%%", percentageExceeded);
 }
 dto.setVihodControlTimeExceeded(vihodControlTimeExceeded);
@@ -510,7 +510,7 @@ if (transportWorkTimeSeconds == -1 || transportNormSeconds == 0) {
 } else if (transportWorkTimeSeconds >= 0 && transportWorkTimeSeconds <= 300) {  // Добавлено
     transportTimeExceeded = "Контроль руководителя";  // Добавлено
 } else {
-    double percentageExceeded = ((double) transportNormSeconds / transportWorkTimeSeconds) * 100;
+    double percentageExceeded = (  transportWorkTimeSeconds/(double) transportNormSeconds) * 100;
     transportTimeExceeded = String.format("%.2f%%", percentageExceeded);
 }
 dto.setTransportTimeExceeded(transportTimeExceeded);
