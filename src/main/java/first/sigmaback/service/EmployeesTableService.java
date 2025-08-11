@@ -112,7 +112,7 @@ public class EmployeesTableService {
 
         // Calculate workTimePercentage
         if (dto.getTotalNormTime() > 0) {
-            double percentage = ((double) normAndWorkTime[1]/dto.getTotalNormTime()/3600) * 100;
+            double percentage = ((double) normAndWorkTime[1]/ dto.getTotalNormTime()/3600) * 100;
             dto.setWorkTimePercentage(String.format("%.2f", percentage).replace('.', ','));
         } else {
             dto.setWorkTimePercentage("Нет данных");
