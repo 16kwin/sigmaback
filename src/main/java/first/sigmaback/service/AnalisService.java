@@ -84,6 +84,7 @@ public AnalisService(PppRepository pppRepository, AnalisHeaderService analisHead
         AnalisDTO dto = new AnalisDTO();
         dto.setTransaction(ppp.getTransaction());
         dto.setStatus(ppp.getStatus());
+
         dto.setPlanDateStart(ppp.getPlanDateStart());
         dto.setForecastDateStart(ppp.getForecastDateStart());
         dto.setFactDateStart(ppp.getFactDateStart());
@@ -694,36 +695,7 @@ dto.setTotalTimeBetweenOperations(totalTime);
 
 
 // Получаем planPpp из DTO (предполагается, что planPpp - это double в минутах)
-int planPppMinutes = dto.getPlanPpp();
 
-// Преобразуем planPpp в секунды
-int planPppSeconds = planPppMinutes * 3600;
-
-// Вычисляем totalOperationsWorkTime в секундах
-long totalOperationsWorkTimeSeconds = 0;
-for (Map.Entry<String, Map<String, String>> entry : timeServiceResults.entrySet()) {
-    String operationName = entry.getKey();
-    Map<String, String> operationInfo = entry.getValue();
-    String workTime = operationInfo.get("workTime");
-    long workTimeInSeconds = parseTimeToSeconds(workTime); // Получаем время в секундах
-    if (workTimeInSeconds != -1) { // Проверяем, не равно ли -1
-        totalOperationsWorkTimeSeconds += workTimeInSeconds; // Прибавляем, только если не равно -1
-    }
-}
-
-// Вычисляем процент
-double percentage;
-if (totalOperationsWorkTimeSeconds == 0) {
-    percentage = 0; // Если делим на 0, то процент равен 0
-} else {
-    percentage = (double) (planPppSeconds *100) / totalOperationsWorkTimeSeconds;
-}
-
-// Форматируем результат
-String formattedPercentage = String.format("%.2f%%", percentage);
-
-// Устанавливаем результат в DTO
-dto.setPercentagePlanPpp(formattedPercentage);
 
 
 // ... (existing code) ...
@@ -759,6 +731,36 @@ dto.setTotalTimeAll(formattedTotalTime);
 
         int totalNormsAndProblems = (int)(dto.getTotalProfessionNorms() + analisHeaderService.getTotalHeaderNorms());
                 dto.setPlanPpp(totalNormsAndProblems);
+int planPppMinutes = dto.getPlanPpp();
+
+// Преобразуем planPpp в секунды
+int planPppSeconds = planPppMinutes * 3600;
+
+// Вычисляем totalOperationsWorkTime в секундах
+long totalOperationsWorkTimeSeconds = 0;
+for (Map.Entry<String, Map<String, String>> entry : timeServiceResults.entrySet()) {
+    String operationName = entry.getKey();
+    Map<String, String> operationInfo = entry.getValue();
+    String workTime = operationInfo.get("workTime");
+    long workTimeInSeconds2 = parseTimeToSeconds(workTime); // Получаем время в секундах
+    if (workTimeInSeconds2 != -1) { // Проверяем, не равно ли -1
+        totalOperationsWorkTimeSeconds += workTimeInSeconds2; // Прибавляем, только если не равно -1
+    }
+}
+
+// Вычисляем процент
+double percentage;
+if (totalOperationsWorkTimeSeconds == 0) {
+    percentage = 0; // Если делим на 0, то процент равен 0
+} else {
+    percentage = (double) (planPppSeconds *100) / totalOperationsWorkTimeSeconds;
+}
+
+// Форматируем результат
+String formattedPercentage = String.format("%.2f%%", percentage);
+
+// Устанавливаем результат в DTO
+dto.setPercentagePlanPpp(formattedPercentage);
         return dto;
     }
 
