@@ -718,7 +718,7 @@ double percentage;
 if (totalOperationsWorkTimeSeconds == 0) {
     percentage = 0; // Если делим на 0, то процент равен 0
 } else {
-    percentage = (double) (planPppSeconds *100) / totalOperationsWorkTimeSeconds;
+    percentage =  totalOperationsWorkTimeSeconds/(double) planPppSeconds *100;
 }
 
 // Форматируем результат
