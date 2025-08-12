@@ -82,7 +82,7 @@ public class MonthService {
                     String percentageStr = transaction.getPercentagePlanPpp();
                     if (percentageStr != null) {
                         double percentage = Double.parseDouble(percentageStr.replace("%", "").replace(",", "."));
-                        if (percentage >= 100.0) {
+                        if (percentage <= 100.0) {
                             onTimeCount++;
                         } else {
                             delayedCount++;
