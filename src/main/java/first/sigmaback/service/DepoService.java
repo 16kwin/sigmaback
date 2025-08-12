@@ -288,12 +288,12 @@ private String processExceededTime(String exceededTime) {
         return "Нет данных";
     }
     if ("Контроль руководителя".equals(exceededTime)) {
-        return "да";  // Добавлено: считаем как "да" для контроля руководителя
+        return "Контроль руководителя";  // Добавлено: считаем как "да" для контроля руководителя
     }
 
     try {
         double percentage = Double.parseDouble(exceededTime.replace("%", "").replace(",", "."));
-        if (percentage >= 100.0) return "да";
+        if (percentage <= 100.0) return "да";
         else return "нет";
     } catch (NumberFormatException e) {
         logger.error("Ошибка при преобразовании строки в число: {}", exceededTime, e);
