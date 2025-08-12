@@ -124,16 +124,37 @@ if (planPppSum != null && planPppSum != 0) {
         }
 
         // 7.2. Считаем количество "да" операций
-        int yesOperationsCount = 0;
-        for (DepoDto depo : depoTransactions) {
-            if ("да".equals(depo.getVhodControlTimeExceeded())) yesOperationsCount++;
-            if ("да".equals(depo.getElectricTimeExceeded())) yesOperationsCount++;
-            if ("да".equals(depo.getMechanicTimeExceeded())) yesOperationsCount++;
-            if ("да".equals(depo.getElectronTimeExceeded())) yesOperationsCount++;
-            if ("да".equals(depo.getTechTimeExceeded())) yesOperationsCount++;
-            if ("да".equals(depo.getVihodControlTimeExceeded())) yesOperationsCount++;
-            if ("да".equals(depo.getTransportTimeExceeded())) yesOperationsCount++;
-        }
+int yesOperationsCount = 0;
+for (DepoDto depo : depoTransactions) {
+    if ("да".equals(depo.getVhodControlTimeExceeded()) || 
+        "Контроль руководителя".equals(depo.getVhodControlTimeExceeded())) {
+        yesOperationsCount++;
+    }
+    if ("да".equals(depo.getElectricTimeExceeded()) || 
+        "Контроль руководителя".equals(depo.getElectricTimeExceeded())) {
+        yesOperationsCount++;
+    }
+    if ("да".equals(depo.getMechanicTimeExceeded()) || 
+        "Контроль руководителя".equals(depo.getMechanicTimeExceeded())) {
+        yesOperationsCount++;
+    }
+    if ("да".equals(depo.getElectronTimeExceeded()) || 
+        "Контроль руководителя".equals(depo.getElectronTimeExceeded())) {
+        yesOperationsCount++;
+    }
+    if ("да".equals(depo.getTechTimeExceeded()) || 
+        "Контроль руководителя".equals(depo.getTechTimeExceeded())) {
+        yesOperationsCount++;
+    }
+    if ("да".equals(depo.getVihodControlTimeExceeded()) || 
+        "Контроль руководителя".equals(depo.getVihodControlTimeExceeded())) {
+        yesOperationsCount++;
+    }
+    if ("да".equals(depo.getTransportTimeExceeded()) || 
+        "Контроль руководителя".equals(depo.getTransportTimeExceeded())) {
+        yesOperationsCount++;
+    }
+}
 
         // 7.3. Считаем количество операций, не равных "Нет данных" для каждой операции
         int vhodControlExceededCount = 0, electricExceededCount = 0, mechanicExceededCount = 0,
