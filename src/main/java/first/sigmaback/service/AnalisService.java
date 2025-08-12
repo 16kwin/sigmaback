@@ -715,10 +715,10 @@ for (Map.Entry<String, Map<String, String>> entry : timeServiceResults.entrySet(
 
 // Вычисляем процент
 double percentage;
-if (planPppSeconds == 0) {
+if (totalOperationsWorkTimeSeconds == 0) {
     percentage = 0; // Если делим на 0, то процент равен 0
 } else {
-    percentage =  totalOperationsWorkTimeSeconds*100/(double) planPppSeconds ;
+    percentage = (double) (planPppSeconds *100) / totalOperationsWorkTimeSeconds;
 }
 
 // Форматируем результат
