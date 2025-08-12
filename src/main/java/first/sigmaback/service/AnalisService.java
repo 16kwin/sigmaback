@@ -84,8 +84,6 @@ public AnalisService(PppRepository pppRepository, AnalisHeaderService analisHead
         AnalisDTO dto = new AnalisDTO();
         dto.setTransaction(ppp.getTransaction());
         dto.setStatus(ppp.getStatus());
-
-        dto.setPlanPpp(ppp.getPlanPpp() * 8);
         dto.setPlanDateStart(ppp.getPlanDateStart());
         dto.setForecastDateStart(ppp.getForecastDateStart());
         dto.setFactDateStart(ppp.getFactDateStart());
