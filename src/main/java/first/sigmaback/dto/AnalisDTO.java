@@ -8,15 +8,18 @@ public class AnalisDTO {
     private String transaction;
     private String status;
     private Integer planPpp;
-    private LocalDate planDateStart;
-    private LocalDate forecastDateStart;
-    private LocalDate factDateStart;
-    private LocalDate planDateStop;
-    private LocalDate forecastDateStop;
-    private LocalDate factDateStop;
-    private LocalDate planDateShipment;
-    private LocalDate forecastDateShipment;
-    private LocalDate factDateShipment;
+    
+    // ИЗМЕНЯЕМ LocalDate НА String
+    private String planDateStart;
+    private String forecastDateStart;
+    private String factDateStart;
+    private String planDateStop;
+    private String forecastDateStop;
+    private String factDateStop;
+    private String planDateShipment;
+    private String forecastDateShipment;
+    private String factDateShipment;
+    
     private String mechanicOptionWorktype;
     private String electronOptionWorktype;
     private String electricOptionWorktype;
@@ -62,41 +65,40 @@ public class AnalisDTO {
     private String techTotalWorktime;
     private String totalOperationsWorkTime;
 
-
     private Double mechanicProblemHours;
     private Double electronProblemHours;
     private Double electricProblemHours;
     private Double techProblemHours;
     private Double complexProblemHours;
-     private Double totalProblemHours;
+    private Double totalProblemHours;
 
+    private String vhodControlTimeExceeded;
+    private String electricTimeExceeded;
+    private String mechanicTimeExceeded;
+    private String electronTimeExceeded;
+    private String techTimeExceeded;
+    private String TransportTimeExceeded;
+    private String vihodControlTimeExceeded;
 
-
-     private String vhodControlTimeExceeded;
-     private String electricTimeExceeded;
-     private String mechanicTimeExceeded;
-     private String electronTimeExceeded;
-     private String techTimeExceeded;
-     private String TransportTimeExceeded;
-     private String vihodControlTimeExceeded;
-
-    public LocalDate planDate1;
-    public LocalDate planDate2;
-    public LocalDate planDate3;
-    public LocalDate planDate4;
-    public LocalDate planDate5;
-    public LocalDate planDate6;
-    public LocalDate planDate7;
+    // ИЗМЕНЯЕМ LocalDate НА String
+    public String planDate1;
+    public String planDate2;
+    public String planDate3;
+    public String planDate4;
+    public String planDate5;
+    public String planDate6;
+    public String planDate7;
      
-     public LocalDate  factDate1;
-    public LocalDate  factDate2;
-    public LocalDate  factDate3;
-    public LocalDate  factDate4;
-    public LocalDate  factDate5;
-    public LocalDate  factDate6;
-    public LocalDate  factDate7;
+    // ИЗМЕНЯЕМ LocalDate НА String
+    public String factDate1;
+    public String factDate2;
+    public String factDate3;
+    public String factDate4;
+    public String factDate5;
+    public String factDate6;
+    public String factDate7;
 
-private String vhodControlEmployee;
+    private String vhodControlEmployee;
     private String podkluchenieEmployee;
     private String proverkaMehanikomEmployee;
     private String proverkaElectronEmployee;
@@ -105,14 +107,14 @@ private String vhodControlEmployee;
     private String transportPolozhenieEmployee;
 
     private String timeBetweenVhodAndPodkluchenie;
-private String timeBetweenPodkluchenieAndProverkaMehanikom;
-private String timeBetweenProverkaMehanikomAndProverkaElectron;
-private String timeBetweenProverkaElectronAndProverkaTehnologom;
-private String timeBetweenProverkaTehnologomAndVihodControl;
-private String timeBetweenVihodControlAndTransportPolozhenie;
-private String totalTimeBetweenOperations;
+    private String timeBetweenPodkluchenieAndProverkaMehanikom;
+    private String timeBetweenProverkaMehanikomAndProverkaElectron;
+    private String timeBetweenProverkaElectronAndProverkaTehnologom;
+    private String timeBetweenProverkaTehnologomAndVihodControl;
+    private String timeBetweenVihodControlAndTransportPolozhenie;
+    private String totalTimeBetweenOperations;
 
-private String percentagePlanPpp;
-private String totalTimeAll;
-private double totalProfessionNorms;
+    private String percentagePlanPpp;
+    private String totalTimeAll;
+    private double totalProfessionNorms;
 }

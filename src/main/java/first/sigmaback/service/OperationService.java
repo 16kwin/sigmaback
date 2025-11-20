@@ -1,8 +1,8 @@
 package first.sigmaback.service;
 
-import first.sigmaback.entity.Operation;
+import first.sigmaback.entity.OperationNew;
 import first.sigmaback.entity.OperationNorm;
-import first.sigmaback.repository.OperationRepository;
+import first.sigmaback.repository.OperationNewRepository;
 import first.sigmaback.repository.OperationNormRepository;
 import org.springframework.stereotype.Service;
 
@@ -13,23 +13,25 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class OperationService {
 
-    private final OperationRepository operationRepository;
+    private final OperationNewRepository operationNewRepository;
     private final OperationNormRepository operationNormRepository;
 
-    public OperationService(OperationRepository operationRepository, OperationNormRepository operationNormRepository) {
-        this.operationRepository = operationRepository;
+    public OperationService(OperationNewRepository operationNewRepository, OperationNormRepository operationNormRepository) {
+        this.operationNewRepository = operationNewRepository;
         this.operationNormRepository = operationNormRepository;
     }
 
     public Map<String, String> calculateNormsByProfession(String transactionId) {
-        // 1. Получаем все операции для данной транзакции
-        List<Operation> operations = operationRepository.findByOperationTransaction(transactionId);
+        // 1. Получаем все операции для данной транзакции из НОВОЙ таблицы
+        List<OperationNew> operations = operationNewRepository.findByOperationTransaction(transactionId);
 
         // 2. Суммируем нормы и вычисляем время работы для каждой профессии
         double mechanicNormSum = 0;
@@ -41,7 +43,15 @@ public class OperationService {
         double electricOptionWorkTime = 0;
         double techOptionWorkTime = 0;
 
-        for (Operation operation : operations) {
+        // 3. Множество для отслеживания уже учтенных нормативов
+        Set<String> processedNorms = new HashSet<>();
+
+        for (OperationNew operation : operations) {
+            // Пропускаем операции, у которых НЕТ start ИЛИ stop
+            if (operation.getOperationStartWork() == null || operation.getOperationStopWork() == null) {
+                continue;
+            }
+
             // Получаем тип операции
             String operationType = operation.getOperationType();
 
@@ -61,7 +71,7 @@ public class OperationService {
             // Получаем категорию из OperationNorm
             String operationCategory = operationNorm.getNormCategory();
 
-            // Если категория "Опция", пропускаем
+            // Если категория "операция", пропускаем (работаем только с опциями)
             if ("операция".equals(operationCategory)) {
                 continue;
             }
@@ -74,77 +84,90 @@ public class OperationService {
 
             // Если normString null, пропускаем
             if (normString == null) {
-                continue; // Пропускаем текущую операцию, если normString == null
+                continue;
             }
 
-            double norm = 0; // Значение по умолчанию
+            double norm = 0;
 
             // Пытаемся преобразовать строку в число
             try {
                 norm = Double.parseDouble(normString);
             } catch (NumberFormatException e) {
-                // Обработка ошибки преобразования, например, логирование
                 System.err.println("Не удалось преобразовать норму в число: " + normString);
-                continue; // Пропускаем текущую операцию
+                continue;
             }
 
-            // Вычисляем время работы для данной операции
+            // Вычисляем время работы для данной ВАЛИДНОЙ операции
             double workTime = calculateWorkTime(operation.getOperationStartWork(), operation.getOperationStopWork());
 
-            // Добавляем норму и время работы к сумме для соответствующей профессии
+            // Ключ для отслеживания уникальных нормативов
+            String normKey = operationType + "_" + operationNormType;
+
+            // Добавляем время работы ВСЕГДА (суммируем для всех ВАЛИДНЫХ записей)
             if ("Механик".equals(operationNormType)) {
-                mechanicNormSum += norm;
-                mechanicOptionWorkTime += workTime;
+                mechanicOptionWorkTime += workTime; // ← СУММИРУЕМ время работы
+                // Норматив добавляем ТОЛЬКО ОДИН РАЗ
+                if (!processedNorms.contains(normKey)) {
+                    mechanicNormSum += norm; // ← норматив ТОЛЬКО ОДИН РАЗ
+                    processedNorms.add(normKey);
+                }
             } else if ("Электронщик".equals(operationNormType)) {
-                electronNormSum += norm;
                 electronOptionWorkTime += workTime;
+                if (!processedNorms.contains(normKey)) {
+                    electronNormSum += norm;
+                    processedNorms.add(normKey);
+                }
             } else if ("Электрик".equals(operationNormType)) {
-                electricNormSum += norm;
                 electricOptionWorkTime += workTime;
+                if (!processedNorms.contains(normKey)) {
+                    electricNormSum += norm;
+                    processedNorms.add(normKey);
+                }
             } else if ("Технолог".equals(operationNormType)) {
-                techNormSum += norm;
                 techOptionWorkTime += workTime;
+                if (!processedNorms.contains(normKey)) {
+                    techNormSum += norm;
+                    processedNorms.add(normKey);
+                }
             }
         }
 
-        // 3. Создаем карту для хранения результатов
-        Map<String, String> results = new HashMap<>(); // Изменен тип Map
+        // 4. Создаем карту для хранения результатов
+        Map<String, String> results = new HashMap<>();
 
-        // 4. Устанавливаем сумму норм и время работы для каждой профессии в карту
-        results.put("Механик", String.valueOf(mechanicNormSum)); // Преобразуем Double в String
-        results.put("Электронщик", String.valueOf(electronNormSum)); // Преобразуем Double в String
-        results.put("Электрик", String.valueOf(electricNormSum)); // Преобразуем Double в String
-        results.put("Технолог", String.valueOf(techNormSum)); // Преобразуем Double в String
-        results.put("mechanicOption", formatWorkTime(mechanicOptionWorkTime)); // Форматируем и добавляем
-        results.put("electronOption", formatWorkTime(electronOptionWorkTime)); // Форматируем и добавляем
-        results.put("electricOption", formatWorkTime(electricOptionWorkTime)); // Форматируем и добавляем
-        results.put("techOption", formatWorkTime(techOptionWorkTime)); // Форматируем и добавляем
+        // 5. Устанавливаем нормы и время работы для каждой профессии в карту
+        results.put("Механик", String.valueOf(mechanicNormSum));
+        results.put("Электронщик", String.valueOf(electronNormSum));
+        results.put("Электрик", String.valueOf(electricNormSum));
+        results.put("Технолог", String.valueOf(techNormSum));
+        results.put("mechanicOption", formatWorkTime(mechanicOptionWorkTime));
+        results.put("electronOption", formatWorkTime(electronOptionWorkTime));
+        results.put("electricOption", formatWorkTime(electricOptionWorkTime));
+        results.put("techOption", formatWorkTime(techOptionWorkTime));
 
         // Возвращаем результат
         return results;
     }
 
+    // Остальные методы остаются без изменений
     public double calculateWorkTime(Timestamp startTime, Timestamp stopTime) {
         if (startTime == null || stopTime == null) {
-            return 0.0; // Если start или stop равны null, возвращаем 0
+            return 0.0;
         }
 
         LocalDateTime start = startTime.toLocalDateTime();
         LocalDateTime stop = stopTime.toLocalDateTime();
 
         if (start.toLocalDate().equals(stop.toLocalDate())) {
-            // Если start и stop в один день, просто вычисляем разницу
             return calculateWorkTimeSameDay(start, stop);
         } else {
-            // Если в разные дни, используем сложную логику
             return calculateWorkTimeDifferentDays(start, stop);
         }
     }
 
     private double calculateWorkTimeSameDay(LocalDateTime start, LocalDateTime stop) {
-        // Если start и stop в один день
         if (start.isAfter(stop)) {
-            return 0.0; // Если start позже stop, возвращаем 0
+            return 0.0;
         }
 
         LocalTime workStart = LocalTime.of(8, 30);
@@ -162,11 +185,11 @@ public class OperationService {
         }
 
         if (start.isAfter(stop)) {
-            return 0.0; // Если start позже stop после корректировки, возвращаем 0
+            return 0.0;
         }
 
         Duration duration = Duration.between(start, stop);
-        return duration.getSeconds() / 3600.0; // Возвращаем разницу в часах с точностью до секунд
+        return duration.getSeconds() / 3600.0;
     }
 
     private double calculateWorkTimeDifferentDays(LocalDateTime start, LocalDateTime stop) {
@@ -175,15 +198,11 @@ public class OperationService {
         LocalDateTime current = start;
         while (current.isBefore(stop)) {
             if (current.getDayOfWeek() != DayOfWeek.SATURDAY && current.getDayOfWeek() != DayOfWeek.SUNDAY) {
-                // Если это рабочий день
                 if (current.toLocalDate().equals(start.toLocalDate())) {
-                    // Если это день start
                     totalWorkTime += calculateWorkTimeStartDay(current, stop);
                 } else if (current.toLocalDate().equals(stop.toLocalDate())) {
-                    // Если это день stop
                     totalWorkTime += calculateWorkTimeStopDay(current, stop);
                 } else {
-                    // Если это полный рабочий день
                     totalWorkTime += 8.0;
                 }
             }
@@ -198,7 +217,7 @@ public class OperationService {
         LocalDateTime workEndTime = start.toLocalDate().atTime(workEnd);
 
         if (start.isAfter(workEndTime)) {
-            return 0.0; // Если start позже 17:30, возвращаем 0
+            return 0.0;
         }
 
         Duration duration;
@@ -208,7 +227,7 @@ public class OperationService {
             duration = Duration.between(start, workEndTime);
         }
 
-        return duration.getSeconds() / 3600.0; // Возвращаем разницу в часах с точностью до секунд
+        return duration.getSeconds() / 3600.0;
     }
 
     private double calculateWorkTimeStopDay(LocalDateTime current, LocalDateTime stop) {
@@ -216,20 +235,18 @@ public class OperationService {
         LocalDateTime workStartTime = current.toLocalDate().atTime(workStart);
 
         if (stop.isBefore(workStartTime)) {
-            return 0.0; // Если stop раньше 8:30, возвращаем 0
+            return 0.0;
         }
 
-        Duration duration;
-         duration = Duration.between(workStartTime, stop);
-
-        return duration.getSeconds() / 3600.0; // Возвращаем разницу в часах с точностью до секунд
+        Duration duration = Duration.between(workStartTime, stop);
+        return duration.getSeconds() / 3600.0;
     }
 
-public String formatWorkTime(double workTime) {
-    long totalSeconds = Math.round(workTime * 3600); // Преобразуем часы в секунды
-    long HH = totalSeconds / 3600;
-    long MM = (totalSeconds % 3600) / 60;
-    long SS = totalSeconds % 60;
-    return String.format("%02d:%02d:%02d", HH, MM, SS);
-}
+    public String formatWorkTime(double workTime) {
+        long totalSeconds = Math.round(workTime * 3600);
+        long HH = totalSeconds / 3600;
+        long MM = (totalSeconds % 3600) / 60;
+        long SS = totalSeconds % 60;
+        return String.format("%02d:%02d:%02d", HH, MM, SS);
+    }
 }

@@ -15,23 +15,27 @@ public class DatesService {
 
     public Map<Integer, LocalDate> calculateDates(LocalDate planDateStart, Map<Integer, Double> norms) {
         Map<Integer, LocalDate> dates = new HashMap<>();
+        
+        // УБИРАЕМ ЛОГИРОВАНИЕ - просто возвращаем пустой Map
+        if (planDateStart == null) {
+            return dates;
+        }
+        
         LocalDate currentDate = planDateStart;
 
         for (int i = 1; i <= norms.size(); i++) {
             Double norm = norms.get(i);
             if (norm != null) {
-                currentDate = calculateNewDate(currentDate, norm); // Используем calculateNewDate
+                currentDate = calculateNewDate(currentDate, norm);
                 dates.put(i, currentDate);
             } else {
-                // Обработка отсутствия норматива для этапа
-                System.err.println("Предупреждение: Отсутствует норматив для этапа " + i + ".  Пропуск этапа.");
-                dates.put(i, currentDate); // Или бросать исключение, если это недопустимо
+                // УБИРАЕМ ЛОГИРОВАНИЕ для отсутствующих нормативов
+                dates.put(i, currentDate);
             }
         }
 
         return dates;
     }
-
 
     public LocalDate calculateNewDate(LocalDate startDate, double hoursToAdd) {
         // 1. Преобразование часов в минуты
@@ -44,8 +48,8 @@ public class DatesService {
         while (totalMinutesToAdd > 0) {
             // Проверка на выходной
             if (isWeekend(currentDateTime.toLocalDate())) {
-                currentDateTime = currentDateTime.plusDays(1).with(LocalTime.of(8, 30)); // Переходим к 8:30 следующего дня
-                continue; // Переходим к следующей итерации цикла
+                currentDateTime = currentDateTime.plusDays(1).with(LocalTime.of(8, 30));
+                continue;
             }
 
             // Определение рабочего времени
@@ -60,7 +64,7 @@ public class DatesService {
             } else {
                 currentDateTime = currentDateTime.plusMinutes(availableMinutes);
                 totalMinutesToAdd -= availableMinutes;
-                currentDateTime = currentDateTime.plusDays(1).with(LocalTime.of(8, 30)); // Переходим к 8:30 следующего дня
+                currentDateTime = currentDateTime.plusDays(1).with(LocalTime.of(8, 30));
             }
         }
 

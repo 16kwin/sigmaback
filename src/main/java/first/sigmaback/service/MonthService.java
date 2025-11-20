@@ -7,12 +7,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import first.sigmaback.entity.DataCache;
-import first.sigmaback.dto.AnalisFullDTO;  //  Импортируем AnalisFullDTO
+import first.sigmaback.dto.AnalisFullDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.YearMonth;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -68,41 +70,99 @@ public class MonthService {
         List<MonthlyTransactionCountDto> monthlyTransactionCounts = new ArrayList<>();
 
         for (YearMonth month : allMonths) {
-    MonthlyTransactionCountDto dto = new MonthlyTransactionCountDto();
-    dto.setMonth(month);
-    long onTimeCount = 0;
-    long delayedCount = 0;
+            MonthlyTransactionCountDto dto = new MonthlyTransactionCountDto();
+            dto.setMonth(month);
+            long onTimeCount = 0;
+            long delayedCount = 0;
 
-    for (AnalisDTO transaction : allTransactions) {
-        if ("Закрыта".equals(transaction.getStatus()) && transaction.getFactDateStop() != null) {
-            try {
-                YearMonth factMonth = YearMonth.from((LocalDate) transaction.getFactDateStop());
-                if (factMonth.equals(month)) {
-                    // Проверяем percentagePlanPpp
-                    String percentageStr = transaction.getPercentagePlanPpp();
-                    if (percentageStr != null) {
-                        double percentage = Double.parseDouble(percentageStr.replace("%", "").replace(",", "."));
-                        if (percentage <= 100.0) {
-                            onTimeCount++;
-                        } else {
-                            delayedCount++;
+            for (AnalisDTO transaction : allTransactions) {
+                if (transaction == null) {
+                    continue;
+                }
+
+                // ИСПРАВЛЕНИЕ: Проверяем статус и дату окончания (теперь factDateStop - String)
+                if ("Закрыта".equals(transaction.getStatus()) && 
+                    transaction.getFactDateStop() != null && 
+                    !"Нет данных".equals(transaction.getFactDateStop())) {
+                    
+                    try {
+                        // ИСПРАВЛЕНИЕ: Парсим String в LocalDate
+                        LocalDate factDateStop = parseStringToLocalDate(transaction.getFactDateStop());
+                        if (factDateStop != null) {
+                            YearMonth factMonth = YearMonth.from(factDateStop);
+                            if (factMonth.equals(month)) {
+                                // Проверяем percentagePlanPpp
+                                String percentageStr = transaction.getPercentagePlanPpp();
+                                if (percentageStr != null && !percentageStr.isEmpty()) {
+                                    try {
+                                        double percentage = Double.parseDouble(percentageStr.replace("%", "").replace(",", "."));
+                                        if (percentage <= 100.0) {
+                                            onTimeCount++;
+                                        } else {
+                                            delayedCount++;
+                                        }
+                                    } catch (NumberFormatException e) {
+                                        logger.warn("Неверный формат percentagePlanPpp для транзакции {}: {}", 
+                                                   transaction.getTransaction(), percentageStr);
+                                        // Считаем как просроченную при ошибке парсинга
+                                        delayedCount++;
+                                    }
+                                } else {
+                                    // Если percentagePlanPpp отсутствует, считаем как просроченную
+                                    delayedCount++;
+                                }
+                            }
                         }
+                    } catch (Exception e) {
+                        logger.error("Ошибка обработки транзакции {}: {}", transaction.getTransaction(), e.getMessage());
+                        // Продолжаем обработку других транзакций
                     }
                 }
-            } catch (Exception e) {
-                logger.error("Error processing transaction: {}", transaction.getTransaction(), e);
             }
+            
+            dto.setOnTimeCount(onTimeCount);
+            dto.setDelayedCount(delayedCount);
+            dto.setTransactionCount(onTimeCount + delayedCount);
+            monthlyTransactionCounts.add(dto);
         }
-    }
-    dto.setOnTimeCount(onTimeCount);
-    dto.setDelayedCount(delayedCount);
-    dto.setTransactionCount(onTimeCount + delayedCount); // Общее количество
-    monthlyTransactionCounts.add(dto);
-}
 
         long endTime = System.currentTimeMillis();
-        logger.debug("Exiting getMonthlyTransactionCounts() after {} ms", (endTime - startTime));
+        logger.debug("Exiting getMonthlyTransactionCounts() after {} ms. Processed {} months", 
+                    (endTime - startTime), monthlyTransactionCounts.size());
         return monthlyTransactionCounts;
+    }
+
+    // НОВЫЙ МЕТОД: Парсинг String в LocalDate
+    private LocalDate parseStringToLocalDate(String dateString) {
+        if (dateString == null || dateString.isEmpty() || "Нет данных".equals(dateString)) {
+            return null;
+        }
+        
+        try {
+            // Пробуем разные форматы дат
+            DateTimeFormatter[] formatters = {
+                DateTimeFormatter.ofPattern("yyyy-MM-dd"),
+                DateTimeFormatter.ofPattern("dd.MM.yyyy"),
+                DateTimeFormatter.ofPattern("MM/dd/yyyy"),
+                DateTimeFormatter.ISO_LOCAL_DATE
+            };
+            
+            for (DateTimeFormatter formatter : formatters) {
+                try {
+                    return LocalDate.parse(dateString, formatter);
+                } catch (DateTimeParseException e) {
+                    // Пробуем следующий формат
+                    continue;
+                }
+            }
+            
+            logger.warn("Не удалось распарсить дату: {}", dateString);
+            return null;
+            
+        } catch (Exception e) {
+            logger.error("Ошибка при парсинге даты: {}", dateString, e);
+            return null;
+        }
     }
 
     // Helper methods
@@ -128,4 +188,4 @@ public class MonthService {
             return null;
         }
     }
-}
+} 

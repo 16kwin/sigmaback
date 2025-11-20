@@ -111,8 +111,8 @@ public class EmployeesTableService {
         dto.setTotalWorkTime(formatSecondsToTime(normAndWorkTime[1]));
 
         // Calculate workTimePercentage
-        if (dto.getTotalNormTime() > 0) {
-            double percentage = ( dto.getTotalNormTime()*3600/(double) normAndWorkTime[1]);
+        if (dto.getTotalNormTime() > 0 && normAndWorkTime[1] > 0) {
+            double percentage = (dto.getTotalNormTime() * 3600 / (double) normAndWorkTime[1]);
             dto.setWorkTimePercentage(String.format("%.2f", percentage).replace('.', ','));
         } else {
             dto.setWorkTimePercentage("Нет данных");
@@ -122,8 +122,8 @@ public class EmployeesTableService {
         dto.setHoursMounth(hoursMounth);
 
        // Calculate hoursMounthPercentage
-        if (normAndWorkTime[1] > 0 && hoursMounth != null) {
-            double percentage = ((double) normAndWorkTime[1]/hoursMounth/3600);
+        if (normAndWorkTime[1] > 0 && hoursMounth != null && hoursMounth > 0) {
+            double percentage = ((double) normAndWorkTime[1] / hoursMounth / 3600);
             dto.setHoursMounthPercentage(String.format("%.2f", percentage).replace('.', ','));
         } else {
             dto.setHoursMounthPercentage("Нет данных");
@@ -395,8 +395,8 @@ private int checkTimeExceeded(String timeExceededValue) {
         logger.trace("Entering isValidStopTime() with stopTime: {}, yearMonth: {}", stopTime, yearMonth);
         long startTime = System.currentTimeMillis();
 
-        if (stopTime == null || stopTime.isEmpty()) {
-            logger.trace("Exiting isValidStopTime() - stopTime is null or empty");
+        if (stopTime == null || stopTime.isEmpty() || "Нет данных".equals(stopTime)) {
+            logger.trace("Exiting isValidStopTime() - stopTime is null, empty or 'Нет данных'");
             return false;
         }
 

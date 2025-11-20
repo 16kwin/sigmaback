@@ -16,6 +16,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 public class DataCacheService {
@@ -25,6 +26,10 @@ public class DataCacheService {
     private final AnalisService analisService;
     private final DepoService depoService;
     private final EmployeesTableService employeesTableService;
+    
+    // ДОБАВЛЯЕМ СИНХРОНИЗАЦИЮ
+    private final ReentrantLock cacheLock = new ReentrantLock();
+    private volatile boolean isCacheLoading = false;
 
     @Autowired
     public DataCacheService(DataCacheRepository dataCacheRepository, ObjectMapper objectMapper, AnalisService analisService, DepoService depoService, EmployeesTableService employeesTableService) {
@@ -46,10 +51,27 @@ public class DataCacheService {
     @Scheduled(fixedRate = 1800000) // Запускать каждые 30 минут (1800000 миллисекунд)
     @Transactional
     public void loadCache() {
-        cacheAnalisData();
-        generateAndCacheEmployeesData();
-        updateCurrentMonthEmployeesCache(); 
-        cacheDepoData(); // Обновляем кэш для текущего месяца
+        // ПРОВЕРКА ЧТО КЭШ УЖЕ ЗАГРУЖАЕТСЯ
+        if (isCacheLoading) {
+            System.out.println("Кэш уже загружается, пропускаем вызов...");
+            return;
+        }
+        
+        cacheLock.lock();
+        try {
+            isCacheLoading = true;
+            System.out.println("Начало загрузки кэша...");
+            
+            cacheAnalisData();
+            generateAndCacheEmployeesData();
+            updateCurrentMonthEmployeesCache(); 
+            cacheDepoData();
+            
+            System.out.println("Загрузка кэша завершена успешно.");
+        } finally {
+            isCacheLoading = false;
+            cacheLock.unlock();
+        }
     }
 
     private void cacheAnalisData() {
@@ -87,7 +109,6 @@ public class DataCacheService {
             e.printStackTrace();
         }
     }
-
 
     private void cacheDepoData() {
         String name = "Второй json";
@@ -183,8 +204,7 @@ public class DataCacheService {
         while (startMonth.isBefore(currentMonth.plusMonths(1))) {
             String cacheName = getEmployeesCacheName(startMonth);
             if (!checkIfCacheExists(cacheName)) {
-                // Было: List<EmployeesDto> employees = employeesTableService.getUniqueEmployeeNamesBySpecialization();
-                List<EmployeesDto> employees = employeesTableService.getUniqueEmployeeNamesBySpecialization(startMonth); //  Передаем startMonth
+                List<EmployeesDto> employees = employeesTableService.getUniqueEmployeeNamesBySpecialization(startMonth);
                 cacheEmployeesDataForMonth(startMonth, employees);
             }
             startMonth = startMonth.plusMonths(1);
@@ -193,8 +213,7 @@ public class DataCacheService {
 
     private void updateCurrentMonthEmployeesCache() {
         YearMonth currentMonth = YearMonth.now();
-        // Было: List<EmployeesDto> employees = employeesTableService.getUniqueEmployeeNamesBySpecialization();
-        List<EmployeesDto> employees = employeesTableService.getUniqueEmployeeNamesBySpecialization(currentMonth); //  Передаем currentMonth
+        List<EmployeesDto> employees = employeesTableService.getUniqueEmployeeNamesBySpecialization(currentMonth);
         cacheEmployeesDataForMonth(currentMonth, employees);
     }
 }
