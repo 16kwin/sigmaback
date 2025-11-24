@@ -106,7 +106,7 @@ public class AnalisService {
         dto.setTransaction(ppp.getTransaction());
         dto.setStatus(ppp.getStatus());
 
-        // Устанавливаем даты КАК String
+        // Устанавливаем даты КАК String с временной зоной Екатеринбурга
         dto.setPlanDateStart(convertLocalDateToString(ppp.getPlanDateStart()));
         dto.setForecastDateStart(convertLocalDateToString(ppp.getForecastDateStart()));
         dto.setFactDateStart(convertLocalDateToString(ppp.getFactDateStart()));
@@ -203,26 +203,28 @@ public class AnalisService {
         return dto;
     }
 
-    // НОВЫЙ МЕТОД ДЛЯ КОНВЕРТАЦИИ LocalDate В String
+    // ОБНОВЛЕННЫЙ МЕТОД ДЛЯ КОНВЕРТАЦИИ LocalDate В String С ВРЕМЕННОЙ ЗОНОЙ ЕКАТЕРИНБУРГА
     private String convertLocalDateToString(LocalDate date) {
         if (date == null) {
             return "Нет данных";
         }
         try {
-            return date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            // Явно указываем временную зону Екатеринбурга (UTC+5)
+            return date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "T00:00:00+05:00";
         } catch (Exception e) {
             log.error("Ошибка при форматировании даты: {}", date, e);
             return "Нет данных";
         }
     }
 
-    // НОВЫЙ МЕТОД ДЛЯ КОНВЕРТАЦИИ LocalDate ИЗ DatesService В String
+    // ОБНОВЛЕННЫЙ МЕТОД ДЛЯ КОНВЕРТАЦИИ LocalDate ИЗ DatesService В String С ВРЕМЕННОЙ ЗОНОЙ
     private String convertCalculatedDate(LocalDate date) {
         if (date == null) {
             return "Нет данных";
         }
         try {
-            return date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            // Явно указываем временную зону Екатеринбурга (UTC+5)
+            return date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "T00:00:00+05:00";
         } catch (Exception e) {
             log.error("Ошибка при форматировании рассчитанной даты: {}", date, e);
             return "Нет данных";
@@ -628,7 +630,7 @@ public class AnalisService {
         // ВЫЗОВ DATESERVICE С ПРОВЕРКОЙ НА NULL
         Map<Integer, LocalDate> calculatedDates = datesService.calculateDates(planDateStart, norms);
 
-        // Устанавливаем даты в DTO КАК String
+        // Устанавливаем даты в DTO КАК String с временной зоной
         dto.setPlanDate1(calculatedDates.containsKey(1) ? convertCalculatedDate(calculatedDates.get(1)) : "Нет данных");
         dto.setPlanDate2(calculatedDates.containsKey(2) ? convertCalculatedDate(calculatedDates.get(2)) : "Нет данных");
         dto.setPlanDate3(calculatedDates.containsKey(3) ? convertCalculatedDate(calculatedDates.get(3)) : "Нет данных");
@@ -673,7 +675,7 @@ public class AnalisService {
         // ВЫЗОВ DATESERVICE ДЛЯ ФАКТИЧЕСКИХ ДАТ
         Map<Integer, LocalDate> calculatedDates2 = datesService.calculateDates(startDate, norms2);
 
-        // Устанавливаем фактические даты в DTO КАК String
+        // Устанавливаем фактические даты в DTO КАК String с временной зоной
         dto.setFactDate1(calculatedDates2.containsKey(1) ? convertCalculatedDate(calculatedDates2.get(1)) : "Нет данных");
         dto.setFactDate2(calculatedDates2.containsKey(2) ? convertCalculatedDate(calculatedDates2.get(2)) : "Нет данных");
         dto.setFactDate3(calculatedDates2.containsKey(3) ? convertCalculatedDate(calculatedDates2.get(3)) : "Нет данных");
