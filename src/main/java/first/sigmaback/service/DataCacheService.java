@@ -48,7 +48,7 @@ public class DataCacheService {
     }
 
     // Загрузка кэша при запуске приложения и по расписанию
-    @Scheduled(fixedRate = 1800000) // Запускать каждые 30 минут (1800000 миллисекунд)
+    @Scheduled(fixedRate = 3000000) // Запускать каждые 30 минут (1800000 миллисекунд)
     @Transactional
     public void loadCache() {
         // ПРОВЕРКА ЧТО КЭШ УЖЕ ЗАГРУЖАЕТСЯ
