@@ -49,15 +49,15 @@ public class AnalisService {
         log.info("Starting getAllTransactions()");
         long startTime = System.currentTimeMillis();
 
-        // 1. Получаем данные для заголовка
+        // 1. Получаем данные для заголовка ОДИН РАЗ
         log.debug("Getting header norms");
         AnalisHeaderDTO header = analisHeaderService.getNorms();
         
-        // 2. Получаем и преобразуем транзакции
+        // 2. Получаем и преобразуем транзакции, передавая header как параметр
         log.debug("Getting all PPP transactions from repository");
         List<Ppp> ppps = pppRepository.findAll();
         List<AnalisDTO> transactions = ppps.stream()
-                .map(this::convertToAnalisDTO)
+                .map(ppp -> convertToAnalisDTO(ppp, header)) // Передаем header
                 .collect(Collectors.toList());
 
         // 3. Считаем статистику по выполнению плана
@@ -92,7 +92,7 @@ public class AnalisService {
         return fullDTO;
     }
 
-    private AnalisDTO convertToAnalisDTO(Ppp ppp) {
+    private AnalisDTO convertToAnalisDTO(Ppp ppp, AnalisHeaderDTO header) {
         // ДОБАВЛЯЕМ ПРОВЕРКУ НА NULL ДЛЯ TRANSACTION
         if (ppp.getTransaction() == null) {
             log.warn("Transaction ID is null, skipping conversion");
@@ -176,13 +176,13 @@ public class AnalisService {
         log.debug("Getting problem hours for transaction: {}", ppp.getTransaction());
         setProblemHours(dto, ppp.getTransaction());
 
-        // Рассчитываем превышения времени для всех операций
+        // Рассчитываем превышения времени для всех операций (передаем header)
         log.debug("Calculating time exceeded for all operations");
-        calculateTimeExceeded(dto, results);
+        calculateTimeExceeded(dto, results, header);
 
-        // Рассчитываем плановые и фактические даты
+        // Рассчитываем плановые и фактические даты (передаем header)
         log.debug("Calculating planned and actual dates");
-        calculateDates(dto, ppp, results);
+        calculateDates(dto, ppp, results, header);
 
         // Получаем сотрудников для операций
         log.debug("Getting employees for transaction: {}", ppp.getTransaction());
@@ -192,9 +192,9 @@ public class AnalisService {
         log.debug("Calculating time between operations");
         calculateTimeBetweenOperations(dto, ppp.getTransaction());
 
-        // Рассчитываем общее время и проценты
+        // Рассчитываем общее время и проценты (передаем header)
         log.debug("Calculating total time and percentages");
-        calculateTotalTimeAndPercentage(dto, timeServiceResults);
+        calculateTotalTimeAndPercentage(dto, timeServiceResults, header);
 
         long endTime = System.currentTimeMillis();
         log.debug("Finished converting PPP to AnalisDTO for transaction: {} in {} ms", 
@@ -332,31 +332,31 @@ public class AnalisService {
         log.debug("Total problem hours for transaction {}: {}", transactionId, totalProblemHours);
     }
 
-    private void calculateTimeExceeded(AnalisDTO dto, Map<String, String> results) {
+    private void calculateTimeExceeded(AnalisDTO dto, Map<String, String> results, AnalisHeaderDTO header) {
         // Входной контроль
-        calculateVhodControlTimeExceeded(dto);
+        calculateVhodControlTimeExceeded(dto, header);
         
         // Электрик
-        calculateElectricTimeExceeded(dto, results);
+        calculateElectricTimeExceeded(dto, results, header);
         
         // Механик
-        calculateMechanicTimeExceeded(dto, results);
+        calculateMechanicTimeExceeded(dto, results, header);
         
         // Электронщик
-        calculateElectronTimeExceeded(dto, results);
+        calculateElectronTimeExceeded(dto, results, header);
         
         // Технолог
-        calculateTechTimeExceeded(dto, results);
+        calculateTechTimeExceeded(dto, results, header);
         
         // Выходной контроль
-        calculateVihodControlTimeExceeded(dto);
+        calculateVihodControlTimeExceeded(dto, header);
         
         // Транспортное положение
-        calculateTransportTimeExceeded(dto);
+        calculateTransportTimeExceeded(dto, header);
     }
 
-    private void calculateVhodControlTimeExceeded(AnalisDTO dto) {
-        String vhodNormString = analisHeaderService.getNorms().getVhodNorm();
+    private void calculateVhodControlTimeExceeded(AnalisDTO dto, AnalisHeaderDTO header) {
+        String vhodNormString = header.getVhodNorm(); // Используем переданный header
         double vhodNorm;
         try {
             vhodNorm = Double.parseDouble(vhodNormString);
@@ -383,8 +383,8 @@ public class AnalisService {
         log.debug("Vhod control time exceeded: {}", vhodControlTimeExceeded);
     }
 
-    private void calculateElectricTimeExceeded(AnalisDTO dto, Map<String, String> results) {
-        String podklyuchenieNormString = analisHeaderService.getNorms().getPodklyuchenieNorm();
+    private void calculateElectricTimeExceeded(AnalisDTO dto, Map<String, String> results, AnalisHeaderDTO header) {
+        String podklyuchenieNormString = header.getPodklyuchenieNorm(); // Используем переданный header
         String electricNormString = results.get("Электрик");
         double podklyuchenieNorm;
         double electricNormFull;
@@ -427,8 +427,8 @@ public class AnalisService {
         log.debug("Electric time exceeded: {}", electricTimeExceeded);
     }
 
-    private void calculateMechanicTimeExceeded(AnalisDTO dto, Map<String, String> results) {
-        String mechOperationNormString = analisHeaderService.getNorms().getMechOperationNorm();
+    private void calculateMechanicTimeExceeded(AnalisDTO dto, Map<String, String> results, AnalisHeaderDTO header) {
+        String mechOperationNormString = header.getMechOperationNorm(); // Используем переданный header
         String mechNormString = results.get("Механик");
         double mechOperationNorm;
         double mechNormFull;
@@ -471,8 +471,8 @@ public class AnalisService {
         log.debug("Mechanic time exceeded: {}", mechTimeExceeded);
     }
 
-    private void calculateElectronTimeExceeded(AnalisDTO dto, Map<String, String> results) {
-        String electronOperationNormString = analisHeaderService.getNorms().getElectronOperationNorm();
+    private void calculateElectronTimeExceeded(AnalisDTO dto, Map<String, String> results, AnalisHeaderDTO header) {
+        String electronOperationNormString = header.getElectronOperationNorm(); // Используем переданный header
         String electronNormString = results.get("Электронщик");
         double electronOperationNorm;
         double electronNormFull;
@@ -515,8 +515,8 @@ public class AnalisService {
         log.debug("Electron time exceeded: {}", electronTimeExceeded);
     }
 
-    private void calculateTechTimeExceeded(AnalisDTO dto, Map<String, String> results) {
-        String techOperationNormString = analisHeaderService.getNorms().getTechOperationNorm();
+    private void calculateTechTimeExceeded(AnalisDTO dto, Map<String, String> results, AnalisHeaderDTO header) {
+        String techOperationNormString = header.getTechOperationNorm(); // Используем переданный header
         String techNormString = results.get("Технолог");
         double techOperationNorm;
         double techNormFull;
@@ -559,8 +559,8 @@ public class AnalisService {
         log.debug("Tech time exceeded: {}", techTimeExceeded);
     }
 
-    private void calculateVihodControlTimeExceeded(AnalisDTO dto) {
-        String vihodNormString = analisHeaderService.getNorms().getVihodNorm();
+    private void calculateVihodControlTimeExceeded(AnalisDTO dto, AnalisHeaderDTO header) {
+        String vihodNormString = header.getVihodNorm(); // Используем переданный header
         double vihodNorm;
         try {
             vihodNorm = Double.parseDouble(vihodNormString);
@@ -585,8 +585,8 @@ public class AnalisService {
         log.debug("Vihod control time exceeded: {}", vihodControlTimeExceeded);
     }
 
-    private void calculateTransportTimeExceeded(AnalisDTO dto) {
-        String transportNormString = analisHeaderService.getNorms().getTransportNorm();
+    private void calculateTransportTimeExceeded(AnalisDTO dto, AnalisHeaderDTO header) {
+        String transportNormString = header.getTransportNorm(); // Используем переданный header
         double transportNorm;
         try {
             transportNorm = Double.parseDouble(transportNormString);
@@ -611,19 +611,19 @@ public class AnalisService {
         log.debug("Transport time exceeded: {}", transportTimeExceeded);
     }
 
-    private void calculateDates(AnalisDTO dto, Ppp ppp, Map<String, String> results) {
+    private void calculateDates(AnalisDTO dto, Ppp ppp, Map<String, String> results, AnalisHeaderDTO header) {
         LocalDate planDateStart = ppp.getPlanDateStart();
 
-        // Создаем карту с нормативами
+        // Создаем карту с нормативами (используем header)
         Map<Integer, Double> norms = new HashMap<>();
 
-        norms.put(1, parseDouble(analisHeaderService.getNorms().getVhodNorm()));
-        norms.put(2, parseDouble(analisHeaderService.getNorms().getPodklyuchenieNorm()) + parseDouble(results.get("Электрик")));
-        norms.put(3, parseDouble(analisHeaderService.getNorms().getMechOperationNorm()) + parseDouble(results.get("Механик")));
-        norms.put(4, parseDouble(analisHeaderService.getNorms().getElectronOperationNorm()) + parseDouble(results.get("Электронщик")));
-        norms.put(5, parseDouble(analisHeaderService.getNorms().getTechOperationNorm()) + parseDouble(results.get("Технолог")));
-        norms.put(6, parseDouble(analisHeaderService.getNorms().getVihodNorm()));
-        norms.put(7, parseDouble(analisHeaderService.getNorms().getTransportNorm()));
+        norms.put(1, parseDouble(header.getVhodNorm()));
+        norms.put(2, parseDouble(header.getPodklyuchenieNorm()) + parseDouble(results.get("Электрик")));
+        norms.put(3, parseDouble(header.getMechOperationNorm()) + parseDouble(results.get("Механик")));
+        norms.put(4, parseDouble(header.getElectronOperationNorm()) + parseDouble(results.get("Электронщик")));
+        norms.put(5, parseDouble(header.getTechOperationNorm()) + parseDouble(results.get("Технолог")));
+        norms.put(6, parseDouble(header.getVihodNorm()));
+        norms.put(7, parseDouble(header.getTransportNorm()));
 
         // ВЫЗОВ DATESERVICE С ПРОВЕРКОЙ НА NULL
         Map<Integer, LocalDate> calculatedDates = datesService.calculateDates(planDateStart, norms);
@@ -659,16 +659,16 @@ public class AnalisService {
             }
         }
 
-        // Создаем карту с нормативами для фактических дат
+        // Создаем карту с нормативами для фактических дат (используем header)
         Map<Integer, Double> norms2 = new HashMap<>();
 
-        norms2.put(1, parseDouble(analisHeaderService.getNorms().getVhodNorm()));
-        norms2.put(2, parseDouble(analisHeaderService.getNorms().getPodklyuchenieNorm()) + parseDouble(results.get("Электрик")));
-        norms2.put(3, parseDouble(analisHeaderService.getNorms().getMechOperationNorm()) + parseDouble(results.get("Механик")));
-        norms2.put(4, parseDouble(analisHeaderService.getNorms().getElectronOperationNorm()) + parseDouble(results.get("Электронщик")));
-        norms2.put(5, parseDouble(analisHeaderService.getNorms().getTechOperationNorm()) + parseDouble(results.get("Технолог")));
-        norms2.put(6, parseDouble(analisHeaderService.getNorms().getVihodNorm()));
-        norms2.put(7, parseDouble(analisHeaderService.getNorms().getTransportNorm()));
+        norms2.put(1, parseDouble(header.getVhodNorm()));
+        norms2.put(2, parseDouble(header.getPodklyuchenieNorm()) + parseDouble(results.get("Электрик")));
+        norms2.put(3, parseDouble(header.getMechOperationNorm()) + parseDouble(results.get("Механик")));
+        norms2.put(4, parseDouble(header.getElectronOperationNorm()) + parseDouble(results.get("Электронщик")));
+        norms2.put(5, parseDouble(header.getTechOperationNorm()) + parseDouble(results.get("Технолог")));
+        norms2.put(6, parseDouble(header.getVihodNorm()));
+        norms2.put(7, parseDouble(header.getTransportNorm()));
 
         // ВЫЗОВ DATESERVICE ДЛЯ ФАКТИЧЕСКИХ ДАТ
         Map<Integer, LocalDate> calculatedDates2 = datesService.calculateDates(startDate, norms2);
@@ -748,7 +748,7 @@ public class AnalisService {
         log.debug("Time between operations calculated for transaction: {}", transactionId);
     }
 
-    private void calculateTotalTimeAndPercentage(AnalisDTO dto, Map<String, Map<String, String>> timeServiceResults) {
+    private void calculateTotalTimeAndPercentage(AnalisDTO dto, Map<String, Map<String, String>> timeServiceResults, AnalisHeaderDTO header) {
         // Получаем значения из DTO
         String totalOperationsWorkTime2 = dto.getTotalOperationsWorkTime();
         double problemHours = dto.getTotalProblemHours();
@@ -775,8 +775,14 @@ public class AnalisService {
         // Устанавливаем результат в DTO
         dto.setTotalTimeAll(formattedTotalTime);
 
-        // Расчет процента выполнения плана
-        int totalNormsAndProblems = (int)(dto.getTotalProfessionNorms() + analisHeaderService.getTotalHeaderNorms());
+        // Расчет процента выполнения плана (используем header)
+        int totalNormsAndProblems = (int)(dto.getTotalProfessionNorms() + parseDouble(header.getVhodNorm()) +
+                                         parseDouble(header.getPodklyuchenieNorm()) +
+                                         parseDouble(header.getMechOperationNorm()) +
+                                         parseDouble(header.getElectronOperationNorm()) +
+                                         parseDouble(header.getTechOperationNorm()) +
+                                         parseDouble(header.getVihodNorm()) +
+                                         parseDouble(header.getTransportNorm()));
         dto.setPlanPpp(totalNormsAndProblems);
         int planPppMinutes = dto.getPlanPpp();
 

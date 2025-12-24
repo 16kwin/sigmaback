@@ -1,6 +1,7 @@
 package first.sigmaback.dto;
 
 import lombok.Data;
+import java.util.Map;
 
 @Data
 public class DepoHeaderDto {
@@ -19,8 +20,14 @@ public class DepoHeaderDto {
     private int techExceededCount;
     private int vihodControlExceededCount;
     private int transportExceededCount;
-     private int totalHoursMounth; // Новое поле
+    private int totalHoursMounth;
     private int totalWorkTimeHoursFromEmployees; 
     private int totalTimeAllHours;
-     private Double totalProblemHours;
+    private Double totalProblemHours;
+    
+    // Новые поля для диаграммы загрузки персонала
+    private int totalEmployees;
+    private int busyEmployees;
+    private Map<String, Integer> employeesBySpecialization; // Всего по специальностям
+    private Map<String, Integer> busyEmployeesBySpecialization; // Занято по специальностям
 }
