@@ -2,8 +2,8 @@ package first.sigmaback.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import first.sigmaback.entity.OperationNorm;
-import java.util.Optional;
+import java.util.List;
 
 public interface OperationNormRepository extends JpaRepository<OperationNorm, Long> {
-    Optional<OperationNorm> findByWorkPpp(String workPpp);
+    List<OperationNorm> findByWorkPpp(String workPpp);
 }

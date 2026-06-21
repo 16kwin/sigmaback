@@ -28,6 +28,12 @@ public class AnalisHeaderService {
         this.operationNewRepository = operationNewRepository;
     }
 
+    // Вспомогательный метод для получения первого элемента списка
+    private OperationNorm getFirstNorm(String workPpp) {
+        List<OperationNorm> norms = operationNormRepository.findByWorkPpp(workPpp);
+        return norms.isEmpty() ? null : norms.get(0);
+    }
+
     public AnalisHeaderDTO getNorms() {
         System.out.println("[AnalisHeaderService] === НАЧАЛО getNorms() ===");
         long startTime = System.currentTimeMillis();
@@ -37,13 +43,13 @@ public class AnalisHeaderService {
             System.out.println("[AnalisHeaderService] Получение нормативов для операций...");
             long normStartTime = System.currentTimeMillis();
             
-            OperationNorm VhodControl = operationNormRepository.findByWorkPpp("Входной контроль").orElse(null);
-            OperationNorm Podklyuchenie = operationNormRepository.findByWorkPpp("Подключение").orElse(null);
-            OperationNorm MechOperation = operationNormRepository.findByWorkPpp("Проверка механиком").orElse(null);
-            OperationNorm ElectronOperation = operationNormRepository.findByWorkPpp("Проверка электронщиком").orElse(null);
-            OperationNorm TechOperation = operationNormRepository.findByWorkPpp("Проверка технологом").orElse(null);
-            OperationNorm Vihod = operationNormRepository.findByWorkPpp("Выходной контроль").orElse(null);
-            OperationNorm Transport = operationNormRepository.findByWorkPpp("Транспортное положение").orElse(null);
+            OperationNorm VhodControl = getFirstNorm("Входной контроль");
+            OperationNorm Podklyuchenie = getFirstNorm("Подключение");
+            OperationNorm MechOperation = getFirstNorm("Проверка механиком");
+            OperationNorm ElectronOperation = getFirstNorm("Проверка электронщиком");
+            OperationNorm TechOperation = getFirstNorm("Проверка технологом");
+            OperationNorm Vihod = getFirstNorm("Выходной контроль");
+            OperationNorm Transport = getFirstNorm("Транспортное положение");
             
             long normTime = System.currentTimeMillis() - normStartTime;
             System.out.println("[AnalisHeaderService] Нормативы получены за " + normTime + " мс");

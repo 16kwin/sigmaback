@@ -12,7 +12,6 @@ import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -61,8 +60,9 @@ public class OperationService {
                 continue;
             }
 
-            // Ищем соответствующую запись в OperationNorm по workPpp
-            OperationNorm operationNorm = operationNormRepository.findByWorkPpp(operationType).orElse(null);
+            // Ищем соответствующую запись в OperationNorm по workPpp (теперь возвращает List)
+            List<OperationNorm> norms = operationNormRepository.findByWorkPpp(operationType);
+            OperationNorm operationNorm = norms.isEmpty() ? null : norms.get(0);
 
             // Если норма не найдена, пропускаем
             if (operationNorm == null) {
