@@ -37,13 +37,13 @@ public class AnalisHeaderService {
             System.out.println("[AnalisHeaderService] Получение нормативов для операций...");
             long normStartTime = System.currentTimeMillis();
             
-            OperationNorm VhodControl = operationNormRepository.findById("Входной контроль").orElse(null);
-            OperationNorm Podklyuchenie = operationNormRepository.findById("Подключение").orElse(null);
-            OperationNorm MechOperation = operationNormRepository.findById("Проверка механиком").orElse(null);
-            OperationNorm ElectronOperation = operationNormRepository.findById("Проверка электронщиком").orElse(null);
-            OperationNorm TechOperation = operationNormRepository.findById("Проверка технологом").orElse(null);
-            OperationNorm Vihod = operationNormRepository.findById("Выходной контроль").orElse(null);
-            OperationNorm Transport = operationNormRepository.findById("Транспортное положение").orElse(null);
+            OperationNorm VhodControl = operationNormRepository.findByWorkPpp("Входной контроль").orElse(null);
+            OperationNorm Podklyuchenie = operationNormRepository.findByWorkPpp("Подключение").orElse(null);
+            OperationNorm MechOperation = operationNormRepository.findByWorkPpp("Проверка механиком").orElse(null);
+            OperationNorm ElectronOperation = operationNormRepository.findByWorkPpp("Проверка электронщиком").orElse(null);
+            OperationNorm TechOperation = operationNormRepository.findByWorkPpp("Проверка технологом").orElse(null);
+            OperationNorm Vihod = operationNormRepository.findByWorkPpp("Выходной контроль").orElse(null);
+            OperationNorm Transport = operationNormRepository.findByWorkPpp("Транспортное положение").orElse(null);
             
             long normTime = System.currentTimeMillis() - normStartTime;
             System.out.println("[AnalisHeaderService] Нормативы получены за " + normTime + " мс");
@@ -122,13 +122,20 @@ public class AnalisHeaderService {
             AnalisHeaderDTO dto = new AnalisHeaderDTO();
             
             // Нормативы
-            dto.setVhodNorm(VhodControl != null ? VhodControl.getNorm() : null);
-            dto.setPodklyuchenieNorm(Podklyuchenie != null ? Podklyuchenie.getNorm() : null);
-            dto.setMechOperationNorm(MechOperation != null ? MechOperation.getNorm() : null);
-            dto.setElectronOperationNorm(ElectronOperation != null ? ElectronOperation.getNorm() : null);
-            dto.setTechOperationNorm(TechOperation != null ? TechOperation.getNorm() : null);
-            dto.setVihodNorm(Vihod != null ? Vihod.getNorm() : null);
-            dto.setTransportNorm(Transport != null ? Transport.getNorm() : null);
+            dto.setVhodNorm(VhodControl != null && VhodControl.getOperationNorm() != null 
+                ? VhodControl.getOperationNorm().toString() : null);
+            dto.setPodklyuchenieNorm(Podklyuchenie != null && Podklyuchenie.getOperationNorm() != null 
+                ? Podklyuchenie.getOperationNorm().toString() : null);
+            dto.setMechOperationNorm(MechOperation != null && MechOperation.getOperationNorm() != null 
+                ? MechOperation.getOperationNorm().toString() : null);
+            dto.setElectronOperationNorm(ElectronOperation != null && ElectronOperation.getOperationNorm() != null 
+                ? ElectronOperation.getOperationNorm().toString() : null);
+            dto.setTechOperationNorm(TechOperation != null && TechOperation.getOperationNorm() != null 
+                ? TechOperation.getOperationNorm().toString() : null);
+            dto.setVihodNorm(Vihod != null && Vihod.getOperationNorm() != null 
+                ? Vihod.getOperationNorm().toString() : null);
+            dto.setTransportNorm(Transport != null && Transport.getOperationNorm() != null 
+                ? Transport.getOperationNorm().toString() : null);
             
             // Всего сотрудников
             dto.setMechanicCount((int) mechanicCount);

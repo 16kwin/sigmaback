@@ -6,6 +6,7 @@ import first.sigmaback.repository.OperationNewRepository;
 import first.sigmaback.repository.OperationNormRepository;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.DayOfWeek;
 import java.time.Duration;
@@ -60,40 +61,38 @@ public class OperationService {
                 continue;
             }
 
-            // Ищем соответствующую запись в OperationNorm по имени
-            OperationNorm operationNorm = operationNormRepository.findByNormName(operationType);
+            // Ищем соответствующую запись в OperationNorm по workPpp
+            OperationNorm operationNorm = operationNormRepository.findByWorkPpp(operationType).orElse(null);
 
             // Если норма не найдена, пропускаем
             if (operationNorm == null) {
                 continue;
             }
 
-            // Получаем категорию из OperationNorm
-            String operationCategory = operationNorm.getNormCategory();
+            // Получаем категорию из operationOptionPpp
+            String operationCategory = operationNorm.getOperationOptionPpp();
 
-            // Если категория "операция", пропускаем (работаем только с опциями)
-            if ("операция".equals(operationCategory)) {
+            // Если категория "Операция", пропускаем (работаем только с опциями)
+            if ("Операция".equals(operationCategory)) {
                 continue;
             }
 
-            // Получаем тип (профессию) из OperationNorm
-            String operationNormType = operationNorm.getNormType();
+            // Получаем тип (профессию) из specialty
+            String operationNormType = operationNorm.getSpecialty();
 
-            // Получаем норму из OperationNorm
-            String normString = operationNorm.getNorm();
+            // Получаем норму из operationNorm (BigDecimal)
+            BigDecimal normBigDecimal = operationNorm.getOperationNorm();
 
-            // Если normString null, пропускаем
-            if (normString == null) {
+            // Если normBigDecimal null, пропускаем
+            if (normBigDecimal == null) {
                 continue;
             }
 
-            double norm = 0;
-
-            // Пытаемся преобразовать строку в число
+            double norm;
             try {
-                norm = Double.parseDouble(normString);
+                norm = normBigDecimal.doubleValue();
             } catch (NumberFormatException e) {
-                System.err.println("Не удалось преобразовать норму в число: " + normString);
+                System.err.println("Не удалось преобразовать норму в число: " + normBigDecimal);
                 continue;
             }
 
@@ -105,10 +104,9 @@ public class OperationService {
 
             // Добавляем время работы ВСЕГДА (суммируем для всех ВАЛИДНЫХ записей)
             if ("Механик".equals(operationNormType)) {
-                mechanicOptionWorkTime += workTime; // ← СУММИРУЕМ время работы
-                // Норматив добавляем ТОЛЬКО ОДИН РАЗ
+                mechanicOptionWorkTime += workTime;
                 if (!processedNorms.contains(normKey)) {
-                    mechanicNormSum += norm; // ← норматив ТОЛЬКО ОДИН РАЗ
+                    mechanicNormSum += norm;
                     processedNorms.add(normKey);
                 }
             } else if ("Электронщик".equals(operationNormType)) {
@@ -149,7 +147,6 @@ public class OperationService {
         return results;
     }
 
-    // Остальные методы остаются без изменений
     public double calculateWorkTime(Timestamp startTime, Timestamp stopTime) {
         if (startTime == null || stopTime == null) {
             return 0.0;
