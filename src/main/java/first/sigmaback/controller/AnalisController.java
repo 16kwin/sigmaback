@@ -14,7 +14,14 @@ import java.time.format.DateTimeParseException;
 
 @RestController
 @RequestMapping("/api/analis")
-@CrossOrigin(origins = {"http://194.87.56.253:3000", "http://194.87.56.253:3001"})
+@CrossOrigin(origins = {
+    "http://localhost:3000", 
+    "http://localhost:3001",
+    "http://83.219.12.178:3000",
+    "http://83.219.12.178:3001",
+    "http://192.168.88.7:3000",
+    "http://192.168.88.7:3001"
+})
 public class AnalisController {
 
     private final DataCacheService dataCacheService;
