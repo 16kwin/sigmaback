@@ -16,8 +16,9 @@ public class DataCache {
     @Column(name = "name")
     private String jsonName;
 
-    @Column(name = "json")
+    @Column(name = "json", columnDefinition = "TEXT")
     private String json;
+    
     @Column(name = "time")
     private String jsonTime;
 }
